@@ -15,6 +15,8 @@
   --accent-press: #0284c7;
   --ring: rgba(56, 189, 248, 0.4);
   --chip-bg: #222;
+  --text-muted: #6b7280;
+  --input-bg: #1f2937;
 }
 
 body {
@@ -25,10 +27,11 @@ body {
   padding: 0;
 }
 
-/* Header */
+/* Topbar */
 .topbar {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 20px;
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border);
@@ -56,12 +59,14 @@ body {
 .search-center {
   display: flex;
   align-items: center;
+  width: 100%;
+  margin-left: 20px;
 }
 
 .search-center input {
   padding: 10px;
   border: 1px solid var(--border);
-  background-color: var(--bg-soft);
+  background-color: var(--input-bg);
   color: var(--text);
   border-radius: 5px;
   margin-right: 10px;
