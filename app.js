@@ -1,27 +1,30 @@
 /* =============================================================
-   daugia.vin — app.js (v9, gas-safe)
+   daugia.vin — app.js (v10, USD-pegged registration + gas-safe)
    Chain: Viction (VIC, chainId 88)
    Contract: DauGia @ 0x1765e20ecB8cD78688417A6d4123f2b899775599
    Token: VIN @ 0x941F63807401efCE8afe3C9d88d368bAA287Fac4
    Library: ethers v5 UMD (window.ethers)
 
-   Cải tiến v9:
-   - Tất cả giao dịch đều dùng gas overrides:
-     * gasLimit = estimateGas * 1.5 (biên an toàn)
-     * fee: +25% (maxFeePerGas/maxPriorityFeePerGas hoặc gasPrice)
-   - Mục tiêu: ký 1 lần, hạn chế lỗi thiếu gas trên VIC.
+   Chính sách:
+   - Đăng ký thu đúng ~1 USD bằng VIN (dựa trên VICUSDT * 100) + 5% biên an toàn.
+   - Bảo đảm allowance >= max(1 USD quy đổi, platformFeeVIN on-chain).
+   - Gas-safe: estimateGas * 1.5; fee +25% (EIP-1559 hoặc gasPrice).
+   - UI: hiện/ẩn “Đăng ký” / “Tạo cuộc đấu giá” theo trạng thái ví.
+   - Tìm kiếm organizer; Theo dõi / Xóa (lọc danh sách theo organizer theo dõi).
    ============================================================= */
 
 // ---------- Constants ----------
 const RPC_URL = "https://rpc.viction.xyz";
 const EXPLORER = "https://vicscan.xyz";
-const CHAIN_ID_DEC = 88;
 const CHAIN_ID_HEX = "0x58";
+const CHAIN_ID_DEC = 88;
 
 const DAUGIA_ADDR = "0x1765e20ecB8cD78688417A6d4123f2b899775599";
 const VIN_ADDR    = "0x941F63807401efCE8afe3C9d88d368bAA287Fac4";
 
-// Minimal ABIs
+const BINANCE_API_URL = "https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT"; // 1 VIN ≈ 100 * VIC (USD)
+
+// ---------- ABIs ----------
 const ERC20_ABI = [
   "function symbol() view returns (string)",
   "function decimals() view returns (uint8)",
@@ -51,49 +54,47 @@ const DAUGIA_ABI = [
   ],"stateMutability":"view","type":"function"},
   {"inputs":[{"internalType":"address","name":"organizer","type":"address"}],"name":"getOrganizerAuctions","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},
   {"inputs":[],"name":"platformFeeVIN","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-  {"inputs":[{"internalType":"string","name":"profileCID","type":"string"}],"name":"registerOrganizer","outputs":[],"stateMutability":"nonpayable","type":"function"},
-
-  /* Các hàm mutation bổ sung (khi bạn mở UI tạo/đấu giá) */
-  {"inputs":[{"internalType":"uint64","name":"startView","type":"uint64"},{"internalType":"uint64","name":"endView","type":"uint64"},{"internalType":"uint64","name":"depositStart","type":"uint64"},{"internalType":"uint64","name":"depositCutoff","type":"uint64"},{"internalType":"uint64","name":"auctionStart","type":"uint64"},{"internalType":"uint64","name":"auctionEnd","type":"uint64"},{"internalType":"uint256","name":"startingPriceVND","type":"uint256"},{"internalType":"uint256","name":"minIncrementVND","type":"uint256"},{"internalType":"uint256","name":"depositAmountVND","type":"uint256"},{"internalType":"string","name":"auctionDetailCID","type":"string"}],"name":"createAuction","outputs":[{"internalType":"uint256","name":"auctionId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},
-  {"inputs":[{"internalType":"uint256","name":"auctionId","type":"uint256"},{"internalType":"address[]","name":"bidders","type":"address[]"},{"internalType":"string[]","name":"uncProofCIDs","type":"string[]"}],"name":"updateWhitelist","outputs":[],"stateMutability":"nonpayable","type":"function"},
-  {"inputs":[{"internalType":"uint256","name":"auctionId","type":"uint256"},{"internalType":"uint256","name":"bidAmountVND","type":"uint256"}],"name":"placeBid","outputs":[],"stateMutability":"nonpayable","type":"function"},
-  {"inputs":[{"internalType":"uint256","name":"auctionId","type":"uint256"}],"name":"finalize","outputs":[],"stateMutability":"nonpayable","type":"function"}
+  {"inputs":[{"internalType":"string","name":"profileCID","type":"string"}],"name":"registerOrganizer","outputs":[],"stateMutability":"nonpayable","type":"function"}
 ];
 
 // ---------- State ----------
 let provider, signer, account;
 let dauGia, vin;
 let vinDecimals = 18;
-let balanceTimer = null;
 let cacheAuctions = [];
 
 // ---------- DOM ----------
 const $ = (s) => document.querySelector(s);
 const el = {
-  // menu / header
+  // header/menu
   btnConnect: $("#btn-connect"),
   btnDisconnect: $("#btn-disconnect"),
-  menuCreate: $("#menu-create"),
-  btnRegister: $("#btn-register"),
   walletChip: $("#wallet-chip"),
   walletAddress: $("#wallet-address"),
   balVic: $("#bal-vic"),
   balVin: $("#bal-vin"),
-  // search
+  btnRegister: $("#btn-register"),
+  menuCreate: $("#menu-create"),
+  // search + list
   inpOrganizer: $("#inp-organizer"),
   btnSearch: $("#btn-search"),
   btnFollowAdd: $("#btn-follow-add"),
   btnFollowClear: $("#btn-follow-clear"),
-  // list + toast
   list: $("#auction-list"),
-  toast: $("#toast")
+  // toast
+  toast: $("#toast"),
 };
 
 // ---------- Utils ----------
-function showToast(msg, ms = 2600){ if(!el.toast){ alert(msg); return; } el.toast.textContent = msg; el.toast.classList.remove("hidden"); setTimeout(()=> el.toast.classList.add("hidden"), ms); }
-function fmt(v){ try{return new Intl.NumberFormat("vi-VN").format(v)}catch{return String(v)} }
-function shortAddr(a){ return a ? a.slice(0,6)+"…"+a.slice(-4) : ""; }
-function isAddr(a){ return /^0x[a-fA-F0-9]{40}$/.test(a||""); }
+function showToast(msg, ms = 2600){
+  if (!el.toast) { alert(msg); return; }
+  el.toast.textContent = msg;
+  el.toast.classList.remove("hidden");
+  setTimeout(()=> el.toast.classList.add("hidden"), ms);
+}
+function fmt(v){ try { return new Intl.NumberFormat("vi-VN").format(v); } catch { return String(v); } }
+function shortAddr(a){ return a ? `${a.slice(0,6)}…${a.slice(-4)}` : ""; }
+function isAddr(a){ return /^0x[a-fA-F0-9]{40}$/.test(a || ""); }
 function fromUnix(s){ if(!s) return "-"; const d=new Date(Number(s)*1000); return d.toLocaleString(); }
 function ipfsLink(cid){ if(!cid) return ""; if(cid.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${cid.replace("ipfs://","")}`; if(cid.startsWith("http")) return cid; return `https://ipfs.io/ipfs/${cid}`; }
 function setHidden(node, yes){ if(node) node.classList.toggle("hidden", !!yes); }
@@ -101,14 +102,19 @@ function setHidden(node, yes){ if(node) node.classList.toggle("hidden", !!yes); 
 // ---------- Provider / Network ----------
 async function ensureProvider(){
   provider = window.ethereum ? new ethers.providers.Web3Provider(window.ethereum, "any")
-                             : new ethers.providers.JsonRpcProvider("https://rpc.viction.xyz");
+                             : new ethers.providers.JsonRpcProvider(RPC_URL);
 }
 async function addOrSwitchToVIC(){
   if (!window.ethereum) return;
   try { await window.ethereum.request({ method:"wallet_switchEthereumChain", params:[{ chainId: CHAIN_ID_HEX }] }); }
   catch(e){
     if (e.code === 4902){
-      await window.ethereum.request({ method:"wallet_addEthereumChain", params:[{ chainId: CHAIN_ID_HEX, chainName:"Viction Mainnet", nativeCurrency:{ name:"VIC", symbol:"VIC", decimals:18 }, rpcUrls:[RPC_URL], blockExplorerUrls:[EXPLORER] }] });
+      await window.ethereum.request({
+        method:"wallet_addEthereumChain",
+        params:[{ chainId: CHAIN_ID_HEX, chainName:"Viction Mainnet",
+          nativeCurrency:{ name:"VIC", symbol:"VIC", decimals:18 },
+          rpcUrls:[RPC_URL], blockExplorerUrls:[EXPLORER] }]
+      });
     } else { throw e; }
   }
 }
@@ -122,32 +128,21 @@ async function initContracts(readOnly=true){
   try { vinDecimals = await vin.decimals(); } catch {}
 }
 
-// ---------- Gas helpers (v9) ----------
+// ---------- Gas helpers ----------
 async function buildGasOverrides(contract, method, args){
-  // Fee ↑25% ; gasLimit = estimate * 1.5
   const fee = await provider.getFeeData();
   const ov = {};
   if (fee.maxFeePerGas) {
-    const bump = ethers.BigNumber.from(fee.maxFeePerGas).mul(125).div(100);
-    const tip  = ethers.BigNumber.from(fee.maxPriorityFeePerGas || "1500000000").mul(125).div(100); // >=1.5 gwei
-    ov.maxFeePerGas = bump;
-    ov.maxPriorityFeePerGas = tip;
+    ov.maxFeePerGas = ethers.BigNumber.from(fee.maxFeePerGas).mul(125).div(100);           // +25%
+    ov.maxPriorityFeePerGas = ethers.BigNumber.from(fee.maxPriorityFeePerGas || "1500000000").mul(125).div(100);
   } else if (fee.gasPrice) {
-    ov.gasPrice = ethers.BigNumber.from(fee.gasPrice).mul(125).div(100);
+    ov.gasPrice = ethers.BigNumber.from(fee.gasPrice).mul(125).div(100);                    // +25%
   }
   try {
     const est = await contract.estimateGas[method](...args, ov);
-    ov.gasLimit = est.mul(150).div(100); // +50%
+    ov.gasLimit = est.mul(150).div(100);                                                    // +50%
   } catch {
-    // fallback gasLimit an toàn theo loại giao dịch
-    const fallback = {
-      approve: 120000,
-      registerOrganizer: 350000,
-      createAuction: 1200000,
-      updateWhitelist: 1500000,
-      placeBid: 400000,
-      finalize: 300000
-    }[method] || 600000;
+    const fallback = { approve: 120000, registerOrganizer: 350000 }[method] || 600000;
     ov.gasLimit = ethers.BigNumber.from(fallback);
   }
   return ov;
@@ -160,10 +155,12 @@ async function connectWallet(){
   await provider.send("eth_requestAccounts", []);
   signer = provider.getSigner();
   account = await signer.getAddress();
-  if (el.walletAddress) el.walletAddress.textContent = shortAddr(account);
-  setHidden(el.walletChip, false);
+
   setHidden(el.btnConnect, true);
   setHidden(el.btnDisconnect, false);
+  setHidden(el.walletChip, false);
+  if (el.walletAddress) el.walletAddress.textContent = shortAddr(account);
+
   await initContracts(false);
   await refreshBalances();
   startBalanceTimer();
@@ -176,22 +173,24 @@ function disconnectWallet(){
   setHidden(el.btnDisconnect, true);
   setHidden(el.btnRegister, true);
   setHidden(el.menuCreate, true);
-  if (balanceTimer) { clearInterval(balanceTimer); balanceTimer = null; }
+  stopBalanceTimer();
   showToast("Đã ngắt kết nối hiển thị.");
 }
 async function tryAutoConnect(){
   if (!window.ethereum) return;
-  try {
+  try{
     const accs = await window.ethereum.request({ method:"eth_accounts" });
     if (accs && accs[0]){
       provider = new ethers.providers.Web3Provider(window.ethereum, "any");
       try { await addOrSwitchToVIC(); } catch {}
       signer = provider.getSigner();
       account = accs[0];
-      if (el.walletAddress) el.walletAddress.textContent = shortAddr(account);
-      setHidden(el.walletChip, false);
+
       setHidden(el.btnConnect, true);
       setHidden(el.btnDisconnect, false);
+      setHidden(el.walletChip, false);
+      if (el.walletAddress) el.walletAddress.textContent = shortAddr(account);
+
       await initContracts(false);
       await refreshBalances();
       startBalanceTimer();
@@ -201,6 +200,9 @@ async function tryAutoConnect(){
 }
 
 // ---------- Balances ----------
+let balanceTimer = null;
+function stopBalanceTimer(){ if (balanceTimer) { clearInterval(balanceTimer); balanceTimer = null; } }
+function startBalanceTimer(){ stopBalanceTimer(); balanceTimer = setInterval(refreshBalances, 15000); }
 async function refreshBalances(){
   if (!account || !provider) return;
   try {
@@ -214,7 +216,6 @@ async function refreshBalances(){
     if (el.balVin) el.balVin.textContent = `VIN: ${vinHuman.toLocaleString("en-US",{maximumFractionDigits:4})}`;
   } catch {}
 }
-function startBalanceTimer(){ if (balanceTimer) clearInterval(balanceTimer); balanceTimer = setInterval(refreshBalances, 15000); }
 
 // ---------- Registration visibility ----------
 async function isRegistered(addr){
@@ -228,29 +229,87 @@ async function isRegistered(addr){
 async function refreshRegistrationUI(){
   if (!account){ setHidden(el.btnRegister, true); setHidden(el.menuCreate, true); return; }
   const reg = await isRegistered(account);
-  setHidden(el.btnRegister, !!reg);
-  setHidden(el.menuCreate, !reg);
+  setHidden(el.btnRegister, !!reg);  // hiện nếu CHƯA đăng ký
+  setHidden(el.menuCreate, !reg);    // hiện nếu ĐÃ đăng ký
+}
+
+// ---------- Price & 1 USD in VIN ----------
+async function fetchVinUsdPrice(){ // returns { vinUsd: number }
+  const res = await fetch(BINANCE_API_URL, { cache: "no-store" });
+  const data = await res.json();
+  const vic = parseFloat(data.price);
+  if (!Number.isFinite(vic) || vic <= 0) throw new Error("Giá VIC không hợp lệ");
+  const vinUsd = vic * 100; // 1 VIN = 100 * VIC (USD)
+  return { vinUsd };
+}
+
+function calcOneUsdInVinUnits(vinUsd, decimals){
+  // Tính VIN (đơn vị nhỏ nhất) tương ứng 1 USD
+  // units = ceil(10^decimals / vinUsd)
+  const D = BigInt(decimals);
+  const TENP = BigInt(10) ** D;
+  const SCALE = 100000000n; // 1e8 để tránh sai số
+  const vinUsdScaled = BigInt(Math.round(vinUsd * Number(SCALE)));
+  if (vinUsdScaled <= 0n) throw new Error("vinUsdScaled <= 0");
+  const units = (TENP * SCALE + vinUsdScaled - 1n) / vinUsdScaled; // ceil
+  // +5% biên an toàn
+  const unitsSafe = (units * 105n) / 100n;
+  return ethers.BigNumber.from(unitsSafe.toString());
+}
+
+async function oneUsdVinAmountBN(){
+  const { vinUsd } = await fetchVinUsdPrice();
+  return calcOneUsdInVinUnits(vinUsd, vinDecimals || 18);
 }
 
 // ---------- Fees / Approvals ----------
-async function fetchPlatformFee(){ try { return await dauGia.platformFeeVIN(); } catch { return null; } }
-
-async function ensureAllowance(minRequired){
-  if (!account) throw new Error("Chưa kết nối ví");
+async function ensureAllowanceAtLeast(requiredBN){
   const allowance = await vin.allowance(account, DAUGIA_ADDR);
-  if (allowance.gte(minRequired || 0)) return;
-  const args = [DAUGIA_ADDR, minRequired];
-  const ov = await buildGasOverrides(vin, "approve", args);
-  const tx = await vin.approve(...args, ov);
+  if (allowance.gte(requiredBN)) return;
+  const ov = await buildGasOverrides(vin, "approve", [DAUGIA_ADDR, requiredBN]);
+  const tx = await vin.approve(DAUGIA_ADDR, requiredBN, ov);
   showToast("Đang approve VIN…");
   await tx.wait();
 }
 
-// ---------- Read: Load auctions ----------
+// ---------- Registration (1 USD in VIN) ----------
+async function handleRegister(){
+  if (!account) return showToast("Vui lòng kết nối ví.");
+  try{
+    // 1) Lấy số VIN ~ 1 USD (cộng biên) + so với platformFeeVIN on-chain (nếu cao hơn thì lấy cao hơn)
+    const oneUsd = await oneUsdVinAmountBN();
+    let required = oneUsd;
+    try {
+      const feeOnChain = await dauGia.platformFeeVIN();
+      if (feeOnChain.gt(required)) required = feeOnChain;
+    } catch {}
+
+    // 2) Bảo đảm allowance đủ
+    await ensureAllowanceAtLeast(required);
+
+    // 3) Gọi registerOrganizer với gas overrides
+    const args = ["" /* profileCID optional */];
+    const ov   = await buildGasOverrides(dauGia, "registerOrganizer", args);
+    const tx   = await dauGia.registerOrganizer(...args, ov);
+    showToast("Đang gửi đăng ký…");
+    await tx.wait();
+
+    // 4) Cập nhật UI
+    showToast("Đăng ký thành công.");
+    await refreshRegistrationUI();
+  }catch(e){
+    console.error(e);
+    const msg = e?.data?.message || e?.message || "Đăng ký thất bại";
+    showToast(msg);
+  }
+}
+
+// ---------- Auctions (read-only) ----------
 async function loadAllAuctions(){
   cacheAuctions = [];
   if (el.list) el.list.innerHTML = "";
   try{
+    // totalAuctions() (gọi raw vì ABI rút gọn)
     const iface = new ethers.utils.Interface(["function totalAuctions() view returns (uint256)"]);
     const data  = iface.encodeFunctionData("totalAuctions", []);
     const ret   = await (provider || new ethers.providers.JsonRpcProvider(RPC_URL)).call({ to: DAUGIA_ADDR, data });
@@ -265,17 +324,6 @@ async function loadAllAuctions(){
     if (el.list) el.list.innerHTML = `<div class="card"><div class="muted">Không tải được danh sách. Kiểm tra RPC/ABI.</div></div>`;
   }
   applyFiltersAndRender();
-}
-
-function applyFiltersAndRender(){
-  if (!el.list) return;
-  el.list.innerHTML = "";
-  let items = cacheAuctions.slice();
-  if (items.length === 0){
-    el.list.innerHTML = `<div class="card"><div class="muted">Chưa có cuộc đấu giá nào.</div></div>`;
-    return;
-  }
-  for (const {id, a} of items){ renderAuctionCard(id, a); }
 }
 
 function renderAuctionCard(id, a){
@@ -301,57 +349,25 @@ function renderAuctionCard(id, a){
   el.list.appendChild(card);
 }
 
-// ---------- Mutations (gas-safe) ----------
-async function handleRegister(){
-  if (!account) return showToast("Vui lòng kết nối ví.");
-  try{
-    const fee = await fetchPlatformFee();
-    if (!fee) throw new Error("Không đọc được phí nền tảng.");
-    await ensureAllowance(fee);
-    const args = ["" /* profileCID optional */];
-    const ov   = await buildGasOverrides(dauGia, "registerOrganizer", args);
-    const tx   = await dauGia.registerOrganizer(...args, ov);
-    showToast("Đang gửi đăng ký…");
-    await tx.wait();
-    showToast("Đăng ký thành công.");
-    await refreshRegistrationUI();
-  }catch(e){
-    console.error(e);
-    showToast(e?.data?.message || e?.message || "Đăng ký thất bại");
+function applyFiltersAndRender(){
+  if (!el.list) return;
+  el.list.innerHTML = "";
+  const followSet = new Set((JSON.parse(localStorage.getItem("follow-organizers") || "[]")).map(s=>s.toLowerCase()));
+  const hasFollow = followSet.size > 0;
+
+  let items = cacheAuctions.slice();
+  if (hasFollow){
+    items = items.filter(({a}) => (String(a[0]||"").toLowerCase()) && followSet.has(String(a[0]).toLowerCase()));
   }
+
+  if (items.length === 0){
+    el.list.innerHTML = `<div class="card"><div class="muted">Chưa có cuộc đấu giá nào.</div></div>`;
+    return;
+  }
+  for (const {id, a} of items){ renderAuctionCard(id, a); }
 }
 
-// Các hàm dưới dành cho lúc bạn mở giao diện tạo/đấu giá.
-// Bạn có thể gọi trực tiếp với args phù hợp; gas overrides đã sẵn.
-async function createAuction(args){
-  if (!account) throw new Error("Chưa kết nối ví");
-  const ov = await buildGasOverrides(dauGia, "createAuction", args);
-  const tx = await dauGia.createAuction(...args, ov);
-  showToast("Đang tạo phiên…"); await tx.wait(); showToast("Tạo thành công.");
-}
-async function updateWhitelist(auctionId, bidders, uncProofCIDs){
-  if (!account) throw new Error("Chưa kết nối ví");
-  const args = [auctionId, bidders, uncProofCIDs];
-  const ov = await buildGasOverrides(dauGia, "updateWhitelist", args);
-  const tx = await dauGia.updateWhitelist(...args, ov);
-  showToast("Đang cập nhật whitelist…"); await tx.wait(); showToast("Cập nhật thành công.");
-}
-async function placeBid(auctionId, bidAmountVND){
-  if (!account) throw new Error("Chưa kết nối ví");
-  const args = [auctionId, ethers.BigNumber.from(bidAmountVND)];
-  const ov = await buildGasOverrides(dauGia, "placeBid", args);
-  const tx = await dauGia.placeBid(...args, ov);
-  showToast("Đang gửi bid…"); await tx.wait(); showToast("Đặt giá thành công.");
-}
-async function finalize(auctionId){
-  if (!account) throw new Error("Chưa kết nối ví");
-  const args = [auctionId];
-  const ov = await buildGasOverrides(dauGia, "finalize", args);
-  const tx = await dauGia.finalize(...args, ov);
-  showToast("Đang kết thúc…"); await tx.wait(); showToast("Đã công bố kết quả.");
-}
-
-// ---------- Search ----------
+// ---------- Search & Follow ----------
 async function searchByOrganizer(){
   const addr = (el.inpOrganizer?.value || "").trim();
   if (!isAddr(addr)) return showToast("Nhập địa chỉ ví người tạo hợp lệ");
@@ -359,15 +375,33 @@ async function searchByOrganizer(){
   el.list.innerHTML = "";
   try{
     const idsBn = await dauGia.getOrganizerAuctions(addr);
-    const ids = idsBn.map(x => Number(x)).reverse();
+    const ids = idsBn.map(bn => Number(bn)).reverse();
     if (ids.length === 0){
       el.list.innerHTML = `<div class="card"><div class="muted">Không có phiên nào.</div></div>`;
       return;
     }
-    for (const id of ids){ const a = await dauGia.getAuction(id); renderAuctionCard(id, a); }
+    for (const id of ids){
+      const a = await dauGia.getAuction(id);
+      renderAuctionCard(id, a);
+    }
   }catch(e){
-    console.error(e); showToast("Không tải được phiên theo organizer");
+    console.error(e);
+    showToast("Không tải được phiên theo organizer");
   }
+}
+function addFollowFromInput(){
+  const addr = (el.inpOrganizer?.value || "").trim();
+  if (!isAddr(addr)) return showToast("Nhập địa chỉ organizer hợp lệ");
+  const s = new Set(JSON.parse(localStorage.getItem("follow-organizers") || "[]"));
+  s.add(addr.toLowerCase());
+  localStorage.setItem("follow-organizers", JSON.stringify(Array.from(s)));
+  showToast("Đã theo dõi organizer");
+  applyFiltersAndRender();
+}
+function clearFollow(){
+  localStorage.removeItem("follow-organizers");
+  showToast("Đã xóa danh sách theo dõi");
+  applyFiltersAndRender();
 }
 
 // ---------- Init ----------
@@ -385,16 +419,13 @@ window.addEventListener("load", async () => {
   el.btnConnect?.addEventListener("click", connectWallet);
   el.btnDisconnect?.addEventListener("click", disconnectWallet);
   el.btnRegister?.addEventListener("click", handleRegister);
-  el.menuCreate?.addEventListener("click", (e) => {
-    e.preventDefault();
-    showToast("Tạo cuộc đấu giá: giao diện sẽ mở ở bản kế tiếp.");
-  });
+  el.menuCreate?.addEventListener("click", (e)=>{ e.preventDefault(); showToast("Tạo cuộc đấu giá: sẽ mở ở bản kế tiếp."); });
 
-  // Search / Follow (follow ở bản này lọc theo giao diện sắp thêm)
+  // Search / Follow
   el.btnSearch?.addEventListener("click", searchByOrganizer);
-  el.btnFollowAdd?.addEventListener("click", () => showToast("Theo dõi: sẽ có lọc theo organizer ở bản sau."));
-  el.btnFollowClear?.addEventListener("click", () => showToast("Đã xóa danh sách theo dõi (nếu có)."));
+  el.btnFollowAdd?.addEventListener("click", addFollowFromInput);
+  el.btnFollowClear?.addEventListener("click", clearFollow);
 
-  // Auto-connect nếu ví đã cho phép
+  // Auto-connect nếu ví đã cấp quyền
   await tryAutoConnect();
 });
