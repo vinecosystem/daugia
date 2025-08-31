@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>daugia.vin — Đấu giá minh bạch trên VIC</title>
+  <meta name="description" content="DApp đấu giá minh bạch: đăng ký tổ chức, tạo phiên, whitelist ví đã cọc, đặt giá, và công bố kết quả — tất cả on‑chain trên Viction (VIC)." />
+
+  <!-- Favicons (user provided file names) -->
+  <link rel="icon" type="image/png" sizes="32x32" href="vin64.png" />
+  <link rel="icon" type="image/png" sizes="64x64" href="vin64.png" />
+  <link rel="apple-touch-icon" sizes="128x128" href="vin128.png" />
+  <link rel="shortcut icon" href="vin64.png" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Top Navigation / Status Bar -->
+  <header class="nav">
+    <div class="nav__left">
+      <img id="logo" src="vin128.png" alt="VIN" />
+      <div class="brand">
+        <h1>daugia.vin</h1>
+        <p class="tagline">Đấu giá minh bạch • Viction (VIC)</p>
+      </div>
+    </div>
+    <div class="nav__right">
+      <div class="net-pill" id="network-pill">VIC: <span id="chain-status">đang kiểm tra…</span></div>
+      <button id="btn-add-network" class="btn btn-secondary" title="Thêm mạng VIC vào MetaMask">+ VIC</button>
+      <button id="btn-connect" class="btn btn-primary">Kết nối ví</button>
+    </div>
+  </header>
+
+  <!-- Hero / Quick Actions -->
+  <section class="hero">
+    <div class="hero__content">
+      <h2>Minh bạch • Công bằng • Bất biến</h2>
+      <p>Mọi thao tác (đăng ký, tạo phiên, cập nhật whitelist, đặt giá, kết thúc) đều ghi on‑chain. Phí nền tảng trả bằng VIN.</p>
+      <div class="hero__actions">
+        <button id="btn-register" class="btn btn-outline">Đăng ký tổ chức</button>
+        <button id="btn-open-create" class="btn btn-outline">Tạo cuộc đấu giá</button>
+        <a class="btn btn-ghost" href="https://vicscan.xyz/address/0x1765e20ecB8cD78688417A6d4123f2b899775599" target="_blank" rel="noopener">Xem contract</a>
+      </div>
+      <div class="fee-hint">Phí nền tảng (VIN): <span id="platform-fee">…</span></div>
+    </div>
+  </section>
+
+  <!-- Search & Watchlist -->
+  <section class="toolbar">
+    <div class="toolbar__row">
+      <div class="field">
+        <label for="inp-organizer">Tìm theo ví tổ chức</label>
+        <input id="inp-organizer" type="text" placeholder="0x… organizer" />
+      </div>
+      <button id="btn-search" class="btn">Tìm</button>
+      <button id="btn-clear-search" class="btn btn-ghost">Xóa</button>
+      <div class="grow"></div>
+      <button id="btn-open-watchlist" class="btn btn-secondary">Giỏ theo dõi</button>
+    </div>
+  </section>
+
+  <!-- Auctions List -->
+  <main class="container" id="auction-list">
+    <!-- Cards are injected by app.js -->
+  </main>
+
+  <!-- Create Auction Drawer -->
+  <aside id="drawer-create" class="drawer hidden">
+    <div class="drawer__body">
+      <h3>Tạo cuộc đấu giá</h3>
+      <p class="muted">Nhập thông số phiên. Trường “CID chi tiết” là CID/IPFS URL chứa mô tả dài, ảnh, tài liệu… (bạn có thể tự upload bằng Pinata/IPFS và dán CID vào đây).</p>
+
+      <div class="grid two">
+        <div class="field">
+          <label>Thời gian xem tài sản — Bắt đầu</label>
+          <input id="startView" type="datetime-local" />
+        </div>
+        <div class="field">
+          <label>Thời gian xem tài sản — Kết thúc</label>
+          <input id="endView" type="datetime-local" />
+        </div>
+        <div class="field">
+          <label>Nhận cọc — Bắt đầu</label>
+          <input id="depositStart" type="datetime-local" />
+        </div>
+        <div class="field">
+          <label>Hạn cuối cập nhật whitelist</label>
+          <input id="depositCutoff" type="datetime-local" />
+        </div>
+        <div class="field">
+          <label>Phiên đấu giá — Bắt đầu</label>
+          <input id="auctionStart" type="datetime-local" />
+        </div>
+        <div class="field">
+          <label>Phiên đấu giá — Kết thúc</label>
+          <input id="auctionEnd" type="datetime-local" />
+        </div>
+      </div>
+
+      <div class="grid three">
+        <div class="field">
+          <label>Giá khởi điểm (VND)</label>
+          <input id="startingPriceVND" type="number" min="0" step="1" placeholder="vd. 100000000" />
+        </div>
+        <div class="field">
+          <label>Bước giá tối thiểu (VND)</label>
+          <input id="minIncrementVND" type="number" min="1" step="1" placeholder="vd. 1000000" />
+        </div>
+        <div class="field">
+          <label>Mức tiền đặt cọc (VND)</label>
+          <input id="depositAmountVND" type="number" min="0" step="1" placeholder="vd. 50000000" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>CID chi tiết (IPFS CID hoặc URL ipfs:// / https://)</label>
+        <input id="auctionDetailCID" type="text" placeholder="bafy… hoặc https://ipfs.io/ipfs/…" />
+      </div>
+
+      <div class="drawer__actions">
+        <button id="btn-create" class="btn btn-primary">Ký & Đăng</button>
+        <button id="btn-close-create" class="btn btn-ghost">Đóng</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Whitelist Drawer -->
+  <aside id="drawer-whitelist" class="drawer hidden">
+    <div class="drawer__body">
+      <h3>Cập nhật whitelist</h3>
+      <p class="muted">Chỉ organizer. Dán danh sách địa chỉ ví (mỗi dòng một địa chỉ). Tùy chọn dán danh sách CID (mỗi dòng tương ứng) để lưu bằng chứng đã nhận cọc.</p>
+      <div class="field">
+        <label for="wl-auction-id">Auction ID</label>
+        <input id="wl-auction-id" type="number" min="1" step="1" />
+      </div>
+      <div class="grid two">
+        <div class="field">
+          <label for="wl-addresses">Danh sách địa chỉ</label>
+          <textarea id="wl-addresses" rows="8" placeholder="0xabc...\n0xdef...\n..."></textarea>
+        </div>
+        <div class="field">
+          <label for="wl-cids">Danh sách UNC proof CIDs (tùy chọn)</label>
+          <textarea id="wl-cids" rows="8" placeholder="bafy...\nbafy...\n..."></textarea>
+        </div>
+      </div>
+      <div class="drawer__actions">
+        <button id="btn-update-wl" class="btn btn-primary">Ký & Cập nhật</button>
+        <button id="btn-close-wl" class="btn btn-ghost">Đóng</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Bid Modal -->
+  <div id="modal-bid" class="modal hidden">
+    <div class="modal__panel">
+      <h3>Đặt giá</h3>
+      <p class="muted">Chỉ hoạt động khi ví thuộc whitelist và đang trong thời gian phiên.</p>
+      <div class="field">
+        <label> Auction ID </label>
+        <input id="bid-auction-id" type="number" min="1" step="1" readonly />
+      </div>
+      <div class="field">
+        <label>Số tiền (VND)</label>
+        <input id="bid-amount" type="number" min="1" step="1" />
+        <small id="bid-hint" class="muted"></small>
+      </div>
+      <div class="modal__actions">
+        <button id="btn-confirm-bid" class="btn btn-primary">Ký & Đặt giá</button>
+        <button id="btn-cancel-bid" class="btn btn-ghost">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toast" class="toast hidden"></div>
+
+  <footer class="footer">
+    <div class="footer__row">
+      <span>Contract:</span>
+      <a href="https://vicscan.xyz/address/0x1765e20ecB8cD78688417A6d4123f2b899775599" target="_blank" rel="noopener">0x1765…5599</a>
+      <span class="sep">•</span>
+      <span>VIN token:</span>
+      <a href="https://vicscan.xyz/token/0x941F63807401efCE8afe3C9d88d368bAA287Fac4" target="_blank" rel="noopener">0x941F…Fac4</a>
+    </div>
+    <div class="footer__row muted">
+      DApp chạy trên trình duyệt • Không lưu trữ dữ liệu cá nhân • Mọi giao dịch xác nhận trên ví của bạn
+    </div>
+  </footer>
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" integrity="sha384-y5m2m1v2kFQ+oXGJ3NGM8PSutq6Qftf8c9l4L3k3Hqg1w1qYx0b8kks7p6bG9j4Z" crossorigin="anonymous"></script>
+  <!-- App -->
+  <script src="app.js"></script>
+</body>
+</html>
