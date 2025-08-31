@@ -41,49 +41,22 @@
       <img id="logo-main" src="vin128.png" alt="VIN" width="40" height="40" />
       <div class="brand">
         <h1 class="brand-title">daugia.vin</h1>
-        <p class="brand-sub">daugia.vin — Đấu giá VIN minh bạch trên blockchain</p>
+        <p class="brand-sub">Nền tảng đấu giá công</p>
       </div>
     </div>
 
     <!-- Ô tìm kiếm trung tâm -->
     <div class="search-center" role="search">
       <input id="search-input" class="input" type="text" placeholder="Tìm theo tên/mô tả/mã hồ sơ/địa chỉ ví…" />
-      <button id="btn-search" class="btn" aria-label="Tìm kiếm">Tìm</button>
+      <button id="btn-search" class="btn" aria-label="Tìm kiếm">🔍</button>
     </div>
 
     <!-- Menu phải (desktop) -->
     <nav class="menu-right" aria-label="Menu">
       <!-- Hiện khi CHƯA kết nối -->
       <button id="btn-connect" class="btn primary">Kết nối ví</button>
+      <span id="vin-price" class="price-tag">1 VIN = Đang tải...</span>
       <a class="menu-link" href="#guide">Hướng dẫn</a>
-      <div class="menu-item has-sub">
-        <button class="menu-btn" aria-haspopup="true" aria-expanded="false">Tra cứu ▾</button>
-        <div class="menu-dropdown" role="menu">
-          <a id="link-swap" class="menu-link" role="menuitem" href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noopener">Swap VIN/VIC</a>
-          <a id="link-auction" class="menu-link" role="menuitem" href="#" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
-          <a id="link-vin" class="menu-link" role="menuitem" href="#" target="_blank" rel="noopener">VIN token</a>
-          <div class="separator"></div>
-          <div class="menu-inline" role="menuitem">
-            <span>Giá VIN:</span>
-            <span id="vin-price" class="chip soft">Đang tải...</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Bật sau khi KẾT NỐI (app.js điều khiển) -->
-      <div id="account-menu" class="menu-item has-sub hide">
-        <button class="menu-btn" aria-haspopup="true" aria-expanded="false">Tài khoản ▾</button>
-        <div class="menu-dropdown" role="menu">
-          <button id="btn-register" class="btn hide js-hide-until-connected" role="menuitem">Đăng ký</button>
-          <button id="btn-open-create" class="btn accent hide js-hide-until-registered" role="menuitem">Tạo cuộc đấu giá</button>
-        </div>
-      </div>
-
-      <!-- Chip trạng thái gọn -->
-      <div class="chips">
-        <div class="chip" id="network-chip">VIC • <span id="net-status">Chưa kết nối</span></div>
-        <div class="chip hide" id="account-chip" title="Địa chỉ ví"></div>
-      </div>
     </nav>
   </header>
 
@@ -116,19 +89,6 @@
           <button id="m-btn-connect" class="btn primary block">Kết nối ví</button>
           <a class="menu-link block" href="#guide">Hướng dẫn</a>
           <a id="m-link-swap" class="menu-link block" href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noopener">Swap VIN/VIC</a>
-          <a id="m-link-auction" class="menu-link block" href="#" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
-          <a id="m-link-vin" class="menu-link block" href="#" target="_blank" rel="noopener">VIN token</a>
-          <div class="menu-inline">
-            <span>Giá VIN:</span> <span id="m-vin-price" class="chip soft">Đang tải...</span>
-          </div>
-        </div>
-      </details>
-
-      <details id="m-account" class="hide">
-        <summary>Tài khoản</summary>
-        <div class="drawer-group">
-          <button id="m-btn-register" class="btn hide js-hide-until-connected block">Đăng ký</button>
-          <button id="m-btn-open-create" class="btn accent hide js-hide-until-registered block">Tạo cuộc đấu giá</button>
         </div>
       </details>
     </div>
