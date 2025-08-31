@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>daugia.vin — Đấu giá minh bạch (VIC)</title>
-  <meta name="description" content="DApp đấu giá minh bạch trên Viction (VIC). Các nút chính: Kết nối ví, Đăng ký (1$ VIN), Tạo cuộc đấu giá, Tìm kiếm theo ví, Thêm ví vào giỏ, Swap VIN/VIC, Hướng dẫn." />
+  <title>daugia.vin — Đấu giá minh bạch trên blockchain</title>
+  <meta name="description" content="DApp đấu giá on-chain trên Viction (VIC). Đăng ký, tìm kiếm, theo dõi và xem các cuộc đấu giá minh bạch — công bằng — bất biến." />
 
-  <!-- Favicons (VIN) -->
+  <!-- Favicons -->
   <link rel="icon" type="image/png" sizes="32x32" href="vin64.png" />
   <link rel="icon" type="image/png" sizes="64x64" href="vin64.png" />
   <link rel="apple-touch-icon" sizes="128x128" href="vin128.png" />
@@ -21,12 +21,12 @@
       <img id="logo" src="vin128.png" alt="VIN" />
       <div class="brand">
         <h1>daugia.vin</h1>
-        <p class="tagline">Viction • Transparent & On‑Chain</p>
+        <p class="tagline">Minh bạch & Công bằng trên blockchain</p>
       </div>
     </div>
     <div class="nav__right">
-      <div class="net-pill" id="network-pill">VIC: <span id="chain-status">đang kiểm tra…</span></div>
-      <!-- Chip ví & số dư (ẩn trước khi kết nối) -->
+      <div class="net-pill">VIC: <span id="chain-status">đang kiểm tra…</span></div>
+      <!-- Wallet chip (ẩn trước khi kết nối) -->
       <div id="wallet-chip" class="wallet-chip hidden">
         <span id="wallet-address">0x…</span>
         <span class="sep">•</span>
@@ -34,101 +34,58 @@
         <span class="sep">•</span>
         <span id="bal-vin">VIN: -</span>
       </div>
-      <button id="btn-connect" class="btn btn-primary" title="Kết nối ví trên mạng Viction">Kết nối ví</button>
+      <button id="btn-connect" class="btn btn-primary" title="Kết nối ví (Viction)">Kết nối ví</button>
+      <button id="btn-disconnect" class="btn btn-secondary hidden" title="Ngắt kết nối ví">Ngắt kết nối</button>
     </div>
   </header>
 
-  <!-- Main CTA strip: chỉ các nút theo yêu cầu -->
+  <!-- Slogan -->
   <section class="hero">
     <div class="hero__content">
-      <div class="hero__actions" style="gap:10px; flex-wrap:wrap">
-        <button id="btn-register" class="btn btn-outline" title="Đăng ký — phí 1$ VIN">Đăng ký (1$ VIN)</button>
-        <button id="btn-open-create" class="btn btn-outline">Tạo cuộc đấu giá</button>
-
-        <div class="field" style="max-width:360px; min-width:260px;">
-          <label for="inp-organizer">Tìm kiếm (theo địa chỉ ví)</label>
-          <div style="display:flex; gap:6px;">
-            <input id="inp-organizer" type="text" placeholder="0x… organizer" />
-            <button id="btn-search" class="btn">Tìm</button>
-          </div>
-        </div>
-
-        <div class="field" style="max-width:360px; min-width:260px;">
-          <label for="inp-basket">Thêm ví vào giỏ</label>
-          <div style="display:flex; gap:6px;">
-            <input id="inp-basket" type="text" placeholder="0x… địa chỉ ví" />
-            <button id="btn-add-basket" class="btn btn-secondary">Thêm</button>
-          </div>
-        </div>
-
-        <a class="btn" href="https://vinswap.vin" target="_blank" rel="noopener">Swap VIN/VIC</a>
-        <a class="btn btn-ghost" href="https://vinplay.vin" target="_blank" rel="noopener">Hướng dẫn</a>
-      </div>
+      <h2>Minh bạch — Công bằng — Bất biến</h2>
     </div>
   </section>
 
-  <!-- Danh sách cuộc đấu giá (render bởi app.js) -->
-  <main class="container" id="auction-list"></main>
+  <!-- Toolbar (theo yêu cầu) -->
+  <section class="toolbar">
+    <div class="toolbar__row" style="flex-wrap:wrap; gap:10px; align-items:end; max-width:1080px; margin:0 auto;">
 
-  <!-- Drawer tạo cuộc đấu giá (giữ tối thiểu cần thiết) -->
-  <aside id="drawer-create" class="drawer hidden">
-    <div class="drawer__body">
-      <h3>Tạo cuộc đấu giá</h3>
-      <p class="muted">Điền thông tin cơ bản; chi tiết/ảnh đính kèm qua IPFS CID.</p>
+      <!-- (2) Đăng ký — ẩn khi chưa kết nối; hiện khi đã kết nối & chưa đăng ký -->
+      <button id="btn-register" class="btn btn-outline hidden" title="Đăng ký tổ chức — phí 1$ VIN">Đăng ký (1$ VIN)</button>
 
-      <div class="grid two">
-        <div class="field">
-          <label>Thời gian xem — Bắt đầu</label>
-          <input id="startView" type="datetime-local" />
-        </div>
-        <div class="field">
-          <label>Thời gian xem — Kết thúc</label>
-          <input id="endView" type="datetime-local" />
-        </div>
-        <div class="field">
-          <label>Nhận cọc — Bắt đầu</label>
-          <input id="depositStart" type="datetime-local" />
-        </div>
-        <div class="field">
-          <label>Hạn whitelist</label>
-          <input id="depositCutoff" type="datetime-local" />
-        </div>
-        <div class="field">
-          <label>Đấu giá — Bắt đầu</label>
-          <input id="auctionStart" type="datetime-local" />
-        </div>
-        <div class="field">
-          <label>Đấu giá — Kết thúc</label>
-          <input id="auctionEnd" type="datetime-local" />
+      <!-- (3) Tìm kiếm theo địa chỉ ví (organizer) -->
+      <div class="field" style="max-width:420px; min-width:260px;">
+        <label for="inp-organizer">Tìm kiếm (theo địa chỉ ví organizer)</label>
+        <div style="display:flex; gap:6px;">
+          <input id="inp-organizer" type="text" placeholder="0x… organizer" />
+          <button id="btn-search" class="btn">Tìm</button>
         </div>
       </div>
 
-      <div class="grid three">
-        <div class="field">
-          <label>Giá khởi điểm (VND)</label>
-          <input id="startingPriceVND" type="number" min="0" step="1" />
+      <!-- (4) Theo dõi ví để lọc danh sách -->
+      <div class="field" style="max-width:520px; min-width:260px;">
+        <label for="inp-follow">Theo dõi ví (lọc danh sách theo organizer)</label>
+        <div style="display:flex; gap:6px;">
+          <input id="inp-follow" type="text" placeholder="0x… địa chỉ ví organizer" />
+          <button id="btn-follow-add" class="btn btn-secondary">Theo dõi</button>
+          <button id="btn-follow-clear" class="btn btn-ghost" title="Xóa danh sách theo dõi">Xóa</button>
         </div>
-        <div class="field">
-          <label>Bước giá tối thiểu (VND)</label>
-          <input id="minIncrementVND" type="number" min="1" step="1" />
-        </div>
-        <div class="field">
-          <label>Số tiền đặt cọc (VND)</label>
-          <input id="depositAmountVND" type="number" min="0" step="1" />
-        </div>
+        <small class="muted" id="follow-hint">Chưa có ví theo dõi</small>
       </div>
 
-      <div class="field">
-        <label>CID chi tiết (IPFS CID hoặc URL)</label>
-        <input id="auctionDetailCID" type="text" placeholder="bafy… hoặc https://ipfs.io/ipfs/…" />
-      </div>
-
-      <div class="drawer__actions">
-        <button id="btn-create" class="btn btn-primary">Ký & Đăng</button>
-        <button id="btn-close-create" class="btn btn-ghost">Đóng</button>
-      </div>
     </div>
-  </aside>
+  </section>
+
+  <!-- Sub-status row: bộ lọc + phí nền tảng -->
+  <section style="max-width:1080px; margin:6px auto 0; padding:0 16px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <span class="muted">Trạng thái:</span>
+    <span id="filter-pill" class="badge hidden"></span>
+    <span class="sep">•</span>
+    <span class="muted">Phí nền tảng (VIN): <strong id="platform-fee" class="muted">…</strong></span>
+  </section>
+
+  <!-- Danh sách cuộc đấu giá -->
+  <main class="container" id="auction-list"></main>
 
   <!-- Toast -->
   <div id="toast" class="toast hidden"></div>
@@ -140,16 +97,15 @@
       <span class="sep">•</span>
       <span>VIN token:</span>
       <a href="https://vicscan.xyz/token/0x941F63807401efCE8afe3C9d88d368bAA287Fac4" target="_blank" rel="noopener">0x941F…Fac4</a>
-      <span class="sep">•</span>
-      <a href="https://vinswap.vin" target="_blank" rel="noopener">Swap VIN/VIC</a>
-      <span class="sep">•</span>
-      <a href="https://vinplay.vin" target="_blank" rel="noopener">Hướng dẫn</a>
+    </div>
+    <div class="footer__row muted">
+      daugia.vin — dữ liệu on‑chain • không lưu trữ thông tin cá nhân • giao dịch ký trên ví của bạn
     </div>
   </footer>
 
   <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
-  <!-- App script -->
+  <!-- App script (đồng bộ v3: connect/disconnect + register-guard + follow) -->
   <script src="app.js"></script>
 </body>
 </html>
