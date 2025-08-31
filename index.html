@@ -25,7 +25,7 @@
       </div>
     </div>
     <div class="nav__right">
-      <!-- Giá VIN (thay cho VIC: OK) -->
+      <!-- Giá VIN (USD) -->
       <div class="net-pill" id="vin-price-pill">
         <span id="vin-price">đang tải…</span>
       </div>
@@ -58,30 +58,25 @@
       <!-- Đăng ký — ẩn khi chưa kết nối; hiện khi đã kết nối & chưa đăng ký -->
       <button id="btn-register" class="btn btn-outline hidden" title="Đăng ký tổ chức — phí 1$ VIN">Đăng ký (1$ VIN)</button>
 
-      <!-- Tìm kiếm theo địa chỉ ví người tạo cuộc đấu giá -->
-      <div class="field" style="max-width:420px; min-width:260px;">
+      <!-- 1 ô tìm kiếm + 3 nút (Tìm / Theo dõi / Xóa) -->
+      <div class="field" style="flex:1 1 520px; min-width:280px;">
         <label for="inp-organizer">Tìm kiếm (theo địa chỉ ví người tạo cuộc đấu giá)</label>
         <div style="display:flex; gap:6px;">
-          <input id="inp-organizer" type="text" placeholder="0x… người tạo" />
+          <input id="inp-organizer" type="text" placeholder="0x… người tạo"
+                 oninput="document.getElementById('inp-follow').value=this.value" />
           <button id="btn-search" class="btn">Tìm</button>
-        </div>
-      </div>
-
-      <!-- Theo dõi ví để lọc danh sách -->
-      <div class="field" style="max-width:520px; min-width:260px;">
-        <label for="inp-follow">Theo dõi ví (lọc danh sách theo organizer)</label>
-        <div style="display:flex; gap:6px;">
-          <input id="inp-follow" type="text" placeholder="0x… địa chỉ ví organizer" />
           <button id="btn-follow-add" class="btn btn-secondary">Theo dõi</button>
           <button id="btn-follow-clear" class="btn btn-ghost" title="Xóa danh sách theo dõi">Xóa</button>
         </div>
         <small class="muted" id="follow-hint">Chưa có ví theo dõi</small>
+        <!-- input ẩn để giữ tương thích app.js v6 (đọc #inp-follow) -->
+        <input id="inp-follow" type="hidden" />
       </div>
 
     </div>
   </section>
 
-  <!-- Sub-status row: chỉ còn bộ lọc + phí nền tảng -->
+  <!-- Sub-status row -->
   <section style="max-width:1080px; margin:6px auto 0; padding:0 16px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
     <span class="muted">Trạng thái:</span>
     <span id="filter-pill" class="badge hidden"></span>
@@ -92,7 +87,7 @@
   <!-- Danh sách cuộc đấu giá -->
   <main class="container" id="auction-list"></main>
 
-  <!-- Toast -->
+<!-- Toast -->
   <div id="toast" class="toast hidden"></div>
 
   <footer class="footer">
