@@ -1,5 +1,5 @@
 /* =============================================================
-   daugia.vin — app.js (v11, fixed connect + USD fee + gas-safe)
+   daugia.vin — app.js (v12, stable connect + USD fee + gas-safe)
    Chain: Viction (VIC, chainId 88)
    Contract: DauGia @ 0x1765e20ecB8cD78688417A6d4123f2b899775599
    Token: VIN @ 0x941F63807401efCE8afe3C9d88d368bAA287Fac4
@@ -10,11 +10,13 @@
 const RPC_URL = "https://rpc.viction.xyz";
 const EXPLORER = "https://vicscan.xyz";
 const CHAIN_ID_HEX = "0x58"; // 88
+
 const DAUGIA_ADDR = "0x1765e20ecB8cD78688417A6d4123f2b899775599";
 const VIN_ADDR    = "0x941F63807401efCE8afe3C9d88d368bAA287Fac4";
+
 const BINANCE_API_URL = "https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT"; // 1 VIN ≈ VIC * 100 (USD)
 
-/* ---------------- ABIs ---------------- */
+/* ---------------- ABIs (tối giản, đủ xài) ---------------- */
 const ERC20_ABI = [
   "function symbol() view returns (string)",
   "function decimals() view returns (uint8)",
@@ -24,7 +26,10 @@ const ERC20_ABI = [
 ];
 
 const DAUGIA_ABI = [
+  // events
   {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"organizer","type":"address"},{"indexed":false,"internalType":"string","name":"profileCID","type":"string"}],"name":"OrganizerRegistered","type":"event"},
+  {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"auctionId","type":"uint256"},{"indexed":true,"internalType":"address","name":"organizer","type":"address"},{"indexed":false,"internalType":"string","name":"auctionDetailCID","type":"string"}],"name":"AuctionCreated","type":"event"},
+  // views
   {"inputs":[{"internalType":"uint256","name":"auctionId","type":"uint256"}],"name":"getAuction","outputs":[
     {"internalType":"address","name":"organizer","type":"address"},
     {"internalType":"uint64","name":"startView","type":"uint64"},
@@ -44,6 +49,7 @@ const DAUGIA_ABI = [
   ],"stateMutability":"view","type":"function"},
   {"inputs":[{"internalType":"address","name":"organizer","type":"address"}],"name":"getOrganizerAuctions","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},
   {"inputs":[],"name":"platformFeeVIN","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  // writes
   {"inputs":[{"internalType":"string","name":"profileCID","type":"string"}],"name":"registerOrganizer","outputs":[],"stateMutability":"nonpayable","type":"function"}
 ];
 
@@ -78,16 +84,17 @@ const el = {
 
 /* ---------------- Utils ---------------- */
 function showToast(msg, ms = 2600){
-  if (!el.toast){ alert(msg); return; }
-  el.toast.textContent = msg;
-  el.toast.classList.remove("hidden");
-  setTimeout(()=> el.toast.classList.add("hidden"), ms);
+  try{
+    el.toast.textContent = msg;
+    el.toast.classList.remove("hidden");
+    setTimeout(()=> el.toast.classList.add("hidden"), ms);
+  }catch{ alert(msg); }
 }
 function fmt(v){ try { return new Intl.NumberFormat("vi-VN").format(v); } catch { return String(v); } }
 function shortAddr(a){ return a ? `${a.slice(0,6)}…${a.slice(-4)}` : ""; }
 function isAddr(a){ return /^0x[a-fA-F0-9]{40}$/.test(a || ""); }
 function fromUnix(s){ if(!s) return "-"; const d=new Date(Number(s)*1000); return d.toLocaleString(); }
-function ipfsLink(cid){ if (!cid) return ""; if (cid.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${cid.replace("ipfs://","")}`; if (cid.startsWith("http")) return cid; return `https://ipfs.io/ipfs/${cid}`; }
+function ipfsLink(cid){ if(!cid) return ""; if(cid.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${cid.replace("ipfs://","")}`; if(cid.startsWith("http")) return cid; return `https://ipfs.io/ipfs/${cid}`; }
 function setHidden(node, yes){ if(node) node.classList.toggle("hidden", !!yes); }
 
 /* ---------------- Provider / Network ---------------- */
@@ -107,7 +114,7 @@ async function addOrSwitchToVIC(){
           nativeCurrency:{ name:"VIC", symbol:"VIC", decimals:18 },
           rpcUrls:[RPC_URL], blockExplorerUrls:[EXPLORER] }]
       });
-    } else { throw e; }
+    } else throw e;
   }
 }
 
@@ -128,11 +135,11 @@ async function buildGasOverrides(contract, method, args){
     ov.maxFeePerGas = ethers.BigNumber.from(fee.maxFeePerGas).mul(125).div(100); // +25%
     ov.maxPriorityFeePerGas = ethers.BigNumber.from(fee.maxPriorityFeePerGas || "1500000000").mul(125).div(100);
   } else if (fee.gasPrice) {
-    ov.gasPrice = ethers.BigNumber.from(fee.gasPrice).mul(125).div(100); // +25%
+    ov.gasPrice = ethers.BigNumber.from(fee.gasPrice).mul(125).div(100);         // +25%
   }
   try {
     const est = await contract.estimateGas[method](...args, ov);
-    ov.gasLimit = est.mul(150).div(100); // +50%
+    ov.gasLimit = est.mul(150).div(100);                                          // +50%
   } catch {
     ov.gasLimit = ethers.BigNumber.from(600000);
   }
@@ -299,8 +306,8 @@ async function handleRegister(){
 async function loadAllAuctions(){
   cacheAuctions = [];
   if (el.list) el.list.innerHTML = "";
+  // Cách 1: gọi raw totalAuctions()
   try{
-    // totalAuctions() qua raw call (ABI rút gọn)
     const iface = new ethers.utils.Interface(["function totalAuctions() view returns (uint256)"]);
     const data  = iface.encodeFunctionData("totalAuctions", []);
     const ret   = await (provider || new ethers.providers.JsonRpcProvider(RPC_URL)).call({ to: DAUGIA_ADDR, data });
@@ -311,8 +318,18 @@ async function loadAllAuctions(){
       cacheAuctions.push({ id, a });
     }
   }catch(e){
-    console.error(e);
-    if (el.list) el.list.innerHTML = `<div class="card"><div class="muted">Không tải được danh sách. Kiểm tra RPC/ABI.</div></div>`;
+    // Cách 2 (fallback): quét event AuctionCreated để lấy id mới nhất
+    try{
+      const topic0 = ethers.utils.id("AuctionCreated(uint256,address,string)");
+      const logs = await provider.getLogs({ address: DAUGIA_ADDR, fromBlock: 0, toBlock: "latest", topics: [topic0] });
+      const ids = logs.map(l => Number(ethers.BigNumber.from(l.topics[1]))).sort((a,b)=>b-a);
+      for (const id of ids){
+        const a = await dauGia.getAuction(id);
+        cacheAuctions.push({ id, a });
+      }
+    }catch(e2){
+      console.error("loadAllAuctions failed", e, e2);
+    }
   }
   applyFiltersAndRender();
 }
@@ -397,26 +414,31 @@ function clearFollow(){
 
 /* ---------------- Init ---------------- */
 window.addEventListener("load", async () => {
-  await ensureProvider();
-  await initContracts(true);
-  await loadAllAuctions();
+  try{
+    await ensureProvider();
+    await initContracts(true);
+    await loadAllAuctions();
 
-  if (window.ethereum){
-    window.ethereum.on("accountsChanged", () => window.location.reload());
-    window.ethereum.on("chainChanged", () => window.location.reload());
+    if (window.ethereum){
+      window.ethereum.on("accountsChanged", () => window.location.reload());
+      window.ethereum.on("chainChanged", () => window.location.reload());
+    }
+
+    // Header/menu events (null-safe)
+    el.btnConnect?.addEventListener("click", connectWallet);
+    el.btnDisconnect?.addEventListener("click", disconnectWallet);
+    el.btnRegister?.addEventListener("click", handleRegister);
+    el.menuCreate?.addEventListener("click", (e)=>{ e.preventDefault(); showToast("Tạo cuộc đấu giá: giao diện sẽ mở ở bản kế tiếp."); });
+
+    // Search & Follow
+    el.btnSearch?.addEventListener("click", searchByOrganizer);
+    el.btnFollowAdd?.addEventListener("click", addFollowFromInput);
+    el.btnFollowClear?.addEventListener("click", clearFollow);
+
+    // Auto-connect nếu người dùng đã cho phép
+    await tryAutoConnect();
+  }catch(e){
+    console.error("Init error:", e);
+    showToast("Không khởi tạo được ứng dụng. Kiểm tra console.");
   }
-
-  // Header/menu events (null-safe)
-  el.btnConnect?.addEventListener("click", connectWallet);
-  el.btnDisconnect?.addEventListener("click", disconnectWallet);
-  el.btnRegister?.addEventListener("click", handleRegister);
-  el.menuCreate?.addEventListener("click", (e)=>{ e.preventDefault(); showToast("Tạo cuộc đấu giá: sẽ mở ở bản kế tiếp."); });
-
-  // Search & Follow
-  el.btnSearch?.addEventListener("click", searchByOrganizer);
-  el.btnFollowAdd?.addEventListener("click", addFollowFromInput);
-  el.btnFollowClear?.addEventListener("click", clearFollow);
-
-  // Auto-connect nếu người dùng đã cho phép
-  await tryAutoConnect();
 });
