@@ -139,6 +139,7 @@ async function buildGasOverrides(contract, method, args){
     ov.gasPrice = ethers.BigNumber.from(fee.gasPrice).mul(125).div(100);                    // +25%
   }
   try {
+    // ✅ FIX: dùng spread arguments, KHÔNG phải ".args"
     const est = await contract.estimateGas[method](...args, ov);
     ov.gasLimit = est.mul(150).div(100);                                                    // +50%
   } catch {
