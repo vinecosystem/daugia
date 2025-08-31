@@ -1,19 +1,22 @@
 /* =============================================================
-   daugia.vin — app.js (v5, synced with index.html v5 & style v5)
+   daugia.vin — app.js (v6)
+   Synced with index.html (vin-price pill, 1 search field, follow list)
+   and style.css (v6, dock footer, prominent buttons)
+
    Features:
    - Connect / Disconnect wallet (Viction, chainId 88)
-   - Show wallet chip (address, VIC, VIN)
-   - Register button shows only when: connected & NOT registered (event-based)
+   - Wallet chip: address + VIC & VIN balances (auto-refresh)
+   - Register button only visible when: connected & NOT registered
    - Search auctions by organizer address
-   - Follow organizers list (localStorage) → filter auction list
-   - Platform fee (VIN) display
-   - Read-only auction cards (no bid/finalize UI)
+   - Follow organizers (localStorage) → filter auction list; clear to show all
+   - Show platform fee (VIN)
+   - Read-only auction cards with links (IPFS / Vicscan)
    ============================================================= */
 
 // ---------- Chain/Contracts ----------
 const RPC_URL = "https://rpc.viction.xyz";
 const EXPLORER = "https://vicscan.xyz";
-const CHAIN_ID_DEC = 88; // Viction
+const CHAIN_ID_DEC = 88; // Viction mainnet
 const CHAIN_ID_HEX = "0x58";
 
 const DAUGIA_ADDR = "0x1765e20ecB8cD78688417A6d4123f2b899775599";
@@ -42,18 +45,19 @@ let dauGia, vin;
 let vinDecimals = 18;
 let platformFeeVIN = null; // BigNumber
 let refreshTimer = null;
-let cacheAuctions = []; // {id, data}
+let cacheAuctions = []; // { id, a }
 
 // ---------- DOM ----------
 const $ = (s) => document.querySelector(s);
 const el = {
-  chainStatus: $("#chain-status"),
-  btnConnect: $("#btn-connect"),
-  btnDisconnect: $("#btn-disconnect"),
+  // Header
   walletChip: $("#wallet-chip"),
   walletAddress: $("#wallet-address"),
   balVic: $("#bal-vic"),
   balVin: $("#bal-vin"),
+  btnConnect: $("#btn-connect"),
+  btnDisconnect: $("#btn-disconnect"),
+  // Toolbar
   btnRegister: $("#btn-register"),
   inpOrganizer: $("#inp-organizer"),
   btnSearch: $("#btn-search"),
@@ -61,9 +65,11 @@ const el = {
   btnFollowAdd: $("#btn-follow-add"),
   btnFollowClear: $("#btn-follow-clear"),
   followHint: $("#follow-hint"),
+  // Sub-status & list
   filterPill: $("#filter-pill"),
   platformFee: $("#platform-fee"),
   list: $("#auction-list"),
+  // Toast
   toast: $("#toast"),
 };
 
@@ -74,15 +80,12 @@ function shortAddr(a){ return a ? a.slice(0,6)+"…"+a.slice(-4) : "" }
 function isAddr(a){ return /^0x[a-fA-F0-9]{40}$/.test(a||"") }
 function fromUnix(s){ if(!s) return "-"; const d=new Date(Number(s)*1000); return d.toLocaleString(); }
 function ipfsLink(cid){ if(!cid) return ""; if(cid.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${cid.replace("ipfs://","")}`; if(cid.startsWith("http")) return cid; return `https://ipfs.io/ipfs/${cid}` }
-function setHidden(elm, yes){ if(!elm) return; elm.classList.toggle("hidden", !!yes); }
+function setHidden(node, yes){ if(!node) return; node.classList.toggle("hidden", !!yes); }
 
 // ---------- Provider / Network ----------
 async function ensureProvider(){
   provider = window.ethereum ? new ethers.providers.Web3Provider(window.ethereum, "any") : new ethers.providers.JsonRpcProvider(RPC_URL);
-  const net = await provider.getNetwork();
-  const ok = Number(net.chainId) === CHAIN_ID_DEC;
-  if (el.chainStatus) el.chainStatus.textContent = ok ? "OK" : `Sai mạng (${net.chainId})`;
-  return ok;
+  try { const net = await provider.getNetwork(); if (Number(net.chainId) !== CHAIN_ID_DEC) { /* just info; UI pill removed */ } } catch {}
 }
 
 async function addOrSwitchToVIC(){
@@ -119,13 +122,13 @@ async function connectWallet(){
 }
 
 function disconnectWallet(){
-  // Gỡ state local và UI (MetaMask không có API disconnect)
+  // MetaMask không có API disconnect; ta chỉ reset UI/state phía client
   account = null; signer = null;
   setHidden(el.walletChip, true);
   setHidden(el.btnConnect, false);
   setHidden(el.btnDisconnect, true);
-  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
   if (el.btnRegister) setHidden(el.btnRegister, true);
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
   showToast("Đã ngắt kết nối hiển thị.");
 }
 
@@ -134,7 +137,19 @@ async function tryAutoConnect(){
   try {
     const accs = await window.ethereum.request({ method: "eth_accounts" });
     if (accs && accs[0]){
-      await connectWallet(); // reuses UI logic
+      provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+      try { await addOrSwitchToVIC(); } catch {}
+      signer = provider.getSigner();
+      account = accs[0];
+      if (el.walletAddress) el.walletAddress.textContent = shortAddr(account);
+      setHidden(el.walletChip, false);
+      setHidden(el.btnConnect, true);
+      setHidden(el.btnDisconnect, false);
+      await initContracts(false);
+      await refreshPlatformFee();
+      await refreshBalances();
+      await refreshRegisterVisibility();
+      startBalanceTimer();
     }
   } catch {}
 }
@@ -153,9 +168,8 @@ async function refreshPlatformFee(){
 
 // ---------- Registration visibility ----------
 async function isRegistered(addr){
-  // Heuristic: check OrganizerRegistered events for this address
+  // Kiểm tra có event OrganizerRegistered của địa chỉ này hay chưa
   try{
-    const iface = new ethers.utils.Interface(DAUGIA_ABI);
     const topic0 = ethers.utils.id("OrganizerRegistered(address,string)");
     const topicAddr = ethers.utils.hexZeroPad(addr, 32);
     const logs = await provider.getLogs({ address: DAUGIA_ADDR, fromBlock: 0, toBlock: "latest", topics: [topic0, topicAddr] });
@@ -166,27 +180,7 @@ async function refreshRegisterVisibility(){
   if (!el.btnRegister) return;
   if (!account) return setHidden(el.btnRegister, true);
   const reg = await isRegistered(account);
-  setHidden(el.btnRegister, !!reg); // hide if already registered
-}
-
-// ---------- Actions ----------
-async function registerOrganizer(){
-  if (!account) return showToast("Vui lòng kết nối ví.");
-  await refreshPlatformFee();
-  try {
-    // ensure allowance
-    const allowance = await vin.allowance(account, DAUGIA_ADDR);
-    if (platformFeeVIN && allowance.lt(platformFeeVIN)){
-      const tx1 = await vin.approve(DAUGIA_ADDR, platformFeeVIN);
-      showToast("Đang approve VIN…");
-      await tx1.wait();
-    }
-    const tx = await dauGia.registerOrganizer("");
-    showToast("Đang gửi đăng ký…");
-    await tx.wait();
-    showToast("Đăng ký thành công.");
-    await refreshRegisterVisibility();
-  } catch(e){ console.error(e); showToast(e?.data?.message || e?.message || "Đăng ký thất bại"); }
+  setHidden(el.btnRegister, !!reg); // ẩn nếu đã đăng ký
 }
 
 // ---------- Follow list (organizers) ----------
@@ -210,7 +204,7 @@ async function loadAllAuctions(){
       const a = await dauGia.getAuction(id);
       cacheAuctions.push({ id, a });
     }
-  }catch(e){ console.error(e); if (el.list) el.list.innerHTML = `<div class="card"><div class="muted">Không tải được danh sách. Kiểm tra RPC/ABI.</div></div>`; }
+  }catch(e){ console.error(e); if (el.list) el.list.innerHTML = `<div class=\"card\"><div class=\"muted\">Không tải được danh sách. Kiểm tra RPC/ABI.</div></div>`; }
   applyFiltersAndRender();
 }
 
@@ -223,7 +217,7 @@ function applyFiltersAndRender(){
   let items = cacheAuctions.slice();
   if (hasFollow){ items = items.filter(({a}) => (a[0]||"").toLowerCase() && follow.has(String(a[0]).toLowerCase())); }
 
-  if (items.length === 0){ el.list.innerHTML = `<div class="card"><div class="muted">Chưa có cuộc đấu giá nào.</div></div>`; return; }
+  if (items.length === 0){ el.list.innerHTML = `<div class=\"card\"><div class=\"muted\">Chưa có cuộc đấu giá nào.</div></div>`; return; }
   for (const {id,a} of items){ renderAuctionCard(id, a); }
 }
 
@@ -232,14 +226,14 @@ function renderAuctionCard(id, a){
   const card = document.createElement("div");
   card.className = "card";
   card.innerHTML = `
-    <div class="card__title">Auction #${id}</div>
-    <div class="card__row"><span>Organizer</span><span class="value">${shortAddr(organizer)}</span></div>
-    <div class="card__row"><span>Thời gian phiên</span><span class="value">${fromUnix(auctionStart)} → ${fromUnix(auctionEnd)}</span></div>
-    <div class="card__row"><span>Giá hiện tại</span><span class="value">${fmt(currentPriceVND)} VND</span></div>
-    <div class="card__row"><span>Bước giá</span><span class="value">+${fmt(minIncrementVND)} VND</span></div>
-    <div class="card__row"><span>Đặt cọc</span><span class="value">${fmt(depositAmountVND)} VND</span></div>
-    <div class="card__row"><span>Chi tiết</span><span class="value">${auctionDetailCID ? `<a href="${ipfsLink(auctionDetailCID)}" target="_blank" rel="noopener">IPFS</a>` : '-'}</span></div>
-    <div class="card__row"><span>Explorer</span><span class="value"><a href="${EXPLORER}/address/${DAUGIA_ADDR}" target="_blank" rel="noopener">Vicscan</a></span></div>
+    <div class=\"card__title\">Auction #${id}</div>
+    <div class=\"card__row\"><span>Organizer</span><span class=\"value\">${shortAddr(organizer)}</span></div>
+    <div class=\"card__row\"><span>Thời gian phiên</span><span class=\"value\">${fromUnix(auctionStart)} → ${fromUnix(auctionEnd)}</span></div>
+    <div class=\"card__row\"><span>Giá hiện tại</span><span class=\"value\">${fmt(currentPriceVND)} VND</span></div>
+    <div class=\"card__row\"><span>Bước giá</span><span class=\"value\">+${fmt(minIncrementVND)} VND</span></div>
+    <div class=\"card__row\"><span>Đặt cọc</span><span class=\"value\">${fmt(depositAmountVND)} VND</span></div>
+    <div class=\"card__row\"><span>Chi tiết</span><span class=\"value\">${auctionDetailCID ? `<a href=\"${ipfsLink(auctionDetailCID)}\" target=\"_blank\" rel=\"noopener\">IPFS</a>` : '-'}</span></div>
+    <div class=\"card__row\"><span>Explorer</span><span class=\"value\"><a href=\"${EXPLORER}/address/${DAUGIA_ADDR}\" target=\"_blank\" rel=\"noopener\">Vicscan</a></span></div>
   `;
   el.list.appendChild(card);
 }
@@ -247,16 +241,14 @@ function renderAuctionCard(id, a){
 // ---------- Search ----------
 async function searchByOrganizer(){
   const addr = (el.inpOrganizer?.value||"").trim();
-  if (!isAddr(addr)) return showToast("Nhập địa chỉ organizer hợp lệ");
+  if (!isAddr(addr)) return showToast("Nhập địa chỉ ví người tạo hợp lệ");
   if (!el.list) return;
   el.list.innerHTML = "";
   try{
-    const ids = await dauGia.getOrganizerAuctions(addr);
-    if (!ids || ids.length===0){ el.list.innerHTML = `<div class="card"><div class="muted">Không có phiên nào.</div></div>`; return; }
-    for (const id of ids.slice().reverse()){
-      const a = await dauGia.getAuction(id);
-      renderAuctionCard(id, a);
-    }
+    const idsBn = await dauGia.getOrganizerAuctions(addr);
+    const ids = idsBn.map(bn => Number(bn)).reverse();
+    if (ids.length===0){ el.list.innerHTML = `<div class=\"card\"><div class=\"muted\">Không có phiên nào.</div></div>`; return; }
+    for (const id of ids){ const a = await dauGia.getAuction(id); renderAuctionCard(id, a); }
   }catch(e){ console.error(e); showToast("Không tải được phiên theo organizer"); }
 }
 
@@ -276,7 +268,24 @@ window.addEventListener("load", async () => {
   // Buttons
   el.btnConnect?.addEventListener("click", connectWallet);
   el.btnDisconnect?.addEventListener("click", disconnectWallet);
-  el.btnRegister?.addEventListener("click", registerOrganizer);
+  el.btnRegister?.addEventListener("click", async () => {
+    if (!account) return showToast("Vui lòng kết nối ví.");
+    try{
+      // Ensure allowance for platform fee
+      const allowance = await vin.allowance(account, DAUGIA_ADDR);
+      if (platformFeeVIN && allowance.lt(platformFeeVIN)){
+        const tx1 = await vin.approve(DAUGIA_ADDR, platformFeeVIN);
+        showToast("Đang approve VIN…");
+        await tx1.wait();
+      }
+      const tx = await dauGia.registerOrganizer("");
+      showToast("Đang gửi đăng ký…");
+      await tx.wait();
+      showToast("Đăng ký thành công.");
+      await refreshRegisterVisibility();
+    }catch(e){ console.error(e); showToast(e?.data?.message || e?.message || "Đăng ký thất bại"); }
+  });
+
   el.btnSearch?.addEventListener("click", searchByOrganizer);
   el.btnFollowAdd?.addEventListener("click", () => addFollow(el.inpFollow?.value.trim()));
   el.btnFollowClear?.addEventListener("click", clearFollow);
