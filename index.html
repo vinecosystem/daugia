@@ -1,129 +1,317 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>daugia.vin — Đấu giá minh bạch trên blockchain</title>
-  <meta name="description" content="Nền tảng đấu giá on-chain trên Viction (VIC). Vận hành tự động bằng hợp đồng thông minh; minh bạch — công bằng — bất biến." />
+  <meta name="format-detection" content="telephone=no,email=no,address=no" />
+  <meta name="theme-color" content="#0b0f18" />
+  <title>daugia.vin — Đấu giá VIN minh bạch on-chain</title>
 
-  <!-- Favicons (tùy chọn) -->
-  <link rel="icon" type="image/png" sizes="32x32" href="vin64.png" />
-  <link rel="icon" type="image/png" sizes="64x64" href="vin64.png" />
-  <link rel="apple-touch-icon" sizes="128x128" href="vin128.png" />
-  <link rel="shortcut icon" href="vin64.png" />
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="vin64.png?v=1">
+  <link rel="icon" type="image/png" sizes="64x64" href="vin64.png?v=1">
+  <link rel="apple-touch-icon" sizes="128x128" href="vin128.png?v=1">
+  <link rel="shortcut icon" href="vin64.png?v=1">
 
+  <!-- Styles -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Top Navigation -->
-  <header class="nav">
-    <div class="nav__left">
-      <img id="logo" src="vin128.png" alt="VIN" />
+  <!-- ========= App Config (đọc bởi app.js) ========= -->
+  <script id="app-config" type="application/json">
+  {
+    "CHAIN_ID_DEC": 88,
+    "CHAIN_ID_HEX": "0x58",
+    "RPC_URL": "https://rpc.viction.xyz",
+    "EXPLORER": "https://vicscan.xyz",
+    "CONTRACTS": {
+      "AUCTION": "0x1765e20ecB8cD78688417A6d4123f2b899775599",
+      "VIN":     "0x941F63807401efCE8afe3C9d88d368bAA287Fac4"
+    },
+    "ASSETS": {
+      "FAVICON_64": "vin64.png",
+      "LOGO_128":   "vin128.png"
+    },
+    "LINKS": {
+      "SWAP": "#",      /* cập nhật sau: link Swap VIN/VIC */
+      "SOURCE": "#"
+    }
+  }
+  </script>
+
+  <!-- ========= Top Bar ========= -->
+  <header class="topbar">
+    <div class="brand-wrap">
+      <button id="menu-toggle" class="icon-btn" aria-label="Mở menu">☰</button>
+      <img id="logo-main" src="vin128.png" alt="VIN" width="40" height="40" />
       <div class="brand">
-        <h1>daugia.vin</h1>
-        <p class="tagline">Minh bạch & Công bằng trên blockchain</p>
+        <h1 class="brand-title">daugia.vin</h1>
+        <p class="brand-sub" id="slogan">Minh bạch • Nhanh • On-chain</p>
       </div>
     </div>
 
-    <div class="nav__right">
-      <!-- Giá VIN (USD) -->
-      <div class="net-pill" id="vin-price-pill">
-        <span id="vin-price">đang tải…</span>
+    <nav class="menu-desktop" aria-label="Menu chính (desktop)">
+      <button id="btn-connect" class="btn primary">Kết nối ví</button>
+      <button id="btn-open-create" class="btn accent">Tạo cuộc đấu giá</button>
+
+      <!-- Ô tìm kiếm gọn, tích hợp nút -->
+      <div class="search-inline">
+        <input id="search-input" class="input" type="text" placeholder="Tìm theo tên, mô tả, địa chỉ ví..." />
+        <button id="btn-search" class="btn">Tìm</button>
+        <button id="btn-follow" class="btn ghost" title="Theo dõi kết quả theo từ khóa">Theo dõi</button>
+        <button id="btn-clear" class="btn ghost" title="Xóa bộ lọc">Xóa</button>
       </div>
 
-      <!-- Menu chính (ẩn/hiện bằng app.js) -->
-      <a id="menu-guide" class="btn btn-ghost" href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" target="_blank" rel="noopener">Hướng dẫn</a>
-      <a id="menu-create" class="btn btn-outline hidden" href="#" title="Tạo cuộc đấu giá">Tạo cuộc đấu giá</a>
-      <button id="btn-register" class="btn btn-outline hidden" title="Đăng ký tổ chức — phí ~1 USD bằng VIN">Đăng ký</button>
+      <a id="link-guide" class="menu-link" href="#guide">Hướng dẫn</a>
+      <a id="link-swap" class="menu-link" href="#" target="_blank" rel="noopener">Swap VIN/VIC</a>
+      <a id="link-auction" class="menu-link" href="#" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
+      <a id="link-vin" class="menu-link" href="#" target="_blank" rel="noopener">VIN token</a>
+    </nav>
 
-      <!-- Wallet -->
-      <div id="wallet-chip" class="wallet-chip hidden">
-        <span id="wallet-address">0x…</span>
-        <span class="sep">•</span><span id="bal-vic">VIC: -</span>
-        <span class="sep">•</span><span id="bal-vin">VIN: -</span>
-      </div>
-      <button id="btn-connect" class="btn btn-primary" title="Kết nối ví (Viction)">Kết nối ví</button>
-      <button id="btn-disconnect" class="btn btn-secondary hidden" title="Ngắt kết nối ví">Ngắt kết nối</button>
+    <!-- Chip trạng thái -->
+    <div class="chips">
+      <div class="chip" id="network-chip">VIC • <span id="net-status">Chưa kết nối</span></div>
+      <div class="chip hide" id="account-chip" title="Địa chỉ ví"></div>
     </div>
   </header>
 
-  <!-- Hero -->
-  <section class="hero">
-    <div class="hero__content" style="text-align:center;">
-      <h2 style="font-size:26px; margin-bottom:8px;">Minh bạch — Công bằng — Bất biến</h2>
-      <p class="muted" style="max-width:820px; margin:0 auto 16px;">
-        Nền tảng vận hành tự động bằng <strong>hợp đồng thông minh</strong> trên chuỗi; mọi người có thể tự kiểm chứng qua liên kết <strong>“Hợp đồng đấu giá”</strong> ở cuối trang.
-        Không nắm giữ tiền đặt cọc hay tiền bán tài sản; các khoản này do <strong>bên tổ chức đấu giá</strong> thực hiện ngoài chuỗi (off-chain).
-        Nhiệm vụ duy nhất là tạo ra một cuộc đấu giá <strong>công khai, minh bạch và công bằng</strong> — không ai can thiệp.
-        Xem kỹ <a href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" target="_blank" rel="noopener">Hướng dẫn sử dụng</a>
-      </p>
+  <!-- ========= Off-canvas Menu (mobile) ========= -->
+  <aside id="drawer" class="drawer" aria-hidden="true" aria-label="Menu di động">
+    <div class="drawer-header">
+      <div class="drawer-title">Menu</div>
+      <button class="icon-btn" id="drawer-close" aria-label="Đóng">✕</button>
     </div>
-  </section>
+    <div class="drawer-body">
+      <button id="m-btn-connect" class="btn primary block">Kết nối ví</button>
+      <button id="m-btn-open-create" class="btn accent block">Tạo cuộc đấu giá</button>
 
-  <!-- Search bar: 1 ô + 3 nút -->
-  <section class="toolbar">
-    <div class="toolbar__row" style="max-width:1080px; margin:0 auto; align-items:end; gap:10px;">
-      <div class="field" style="flex:1 1 560px; min-width:280px;">
-        <div style="display:flex; gap:6px;">
-          <input id="inp-organizer" type="text" placeholder="Tìm kiếm (theo địa chỉ ví người tạo cuộc đấu giá — 0x…)" />
-          <button id="btn-search" class="btn">Tìm</button>
-          <button id="btn-follow-add" class="btn btn-secondary">Theo dõi</button>
-          <button id="btn-follow-clear" class="btn btn-ghost" title="Xóa danh sách theo dõi">Xóa</button>
+      <div class="drawer-group">
+        <label class="label">Tìm kiếm</label>
+        <div class="search-stack">
+          <input id="m-search-input" class="input" type="text" placeholder="Từ khóa, ví..." />
+          <div class="row">
+            <button id="m-btn-search" class="btn">Tìm</button>
+            <button id="m-btn-follow" class="btn ghost">Theo dõi</button>
+            <button id="m-btn-clear" class="btn ghost">Xóa</button>
+          </div>
         </div>
       </div>
+
+      <div class="drawer-links">
+        <a class="menu-link block" href="#guide">Hướng dẫn</a>
+        <a id="m-link-swap" class="menu-link block" href="#" target="_blank" rel="noopener">Swap VIN/VIC</a>
+        <a id="m-link-auction" class="menu-link block" href="#" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
+        <a id="m-link-vin" class="menu-link block" href="#" target="_blank" rel="noopener">VIN token</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========= Filter Bar (nhẹ, 1 hàng) ========= -->
+  <section class="filterbar">
+    <div class="filters">
+      <select id="filter-status" class="select" aria-label="Trạng thái">
+        <option value="all">Tất cả</option>
+        <option value="active">Đang diễn ra</option>
+        <option value="upcoming">Sắp diễn ra</option>
+        <option value="ended">Đã kết thúc</option>
+      </select>
+
+      <!-- Phân loại theo Loại tài sản & Xã/Phường -->
+      <select id="filter-asset" class="select" aria-label="Loại tài sản">
+        <option value="all">Loại tài sản: Tất cả</option>
+        <!-- app.js sẽ nạp danh mục từ on-chain -->
+      </select>
+
+      <select id="filter-ward" class="select" aria-label="Xã/Phường">
+        <option value="all">Xã/Phường: Tất cả</option>
+        <!-- app.js sẽ nạp danh mục từ on-chain -->
+      </select>
+
+      <button id="btn-refresh" class="btn ghost">↻</button>
     </div>
   </section>
 
-  <!-- Danh sách cuộc đấu giá -->
-  <main class="container" id="auction-list"></main>
-
-  <!-- Toast -->
-  <div id="toast" class="toast hidden"></div>
-
-  <!-- Footer dock -->
-  <footer class="footer">
-    <div class="footer__row">
-      <a href="https://vicscan.xyz/address/0x1765e20ecB8cD78688417A6d4123f2b899775599" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
-      <span class="sep">•</span>
-      <a href="https://vicscan.xyz/token/0x941F63807401efCE8afe3C9d88d368bAA287Fac4" target="_blank" rel="noopener">VIN token</a>
-      <span class="sep">•</span>
-      <a href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noopener">Swap VIN/VIC</a>
-      <span class="sep">•</span>
-      <a href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" target="_blank" rel="noopener">Hướng dẫn</a>
+  <!-- ========= Main Content: Auction List ========= -->
+  <main class="content">
+    <div id="auction-list" class="grid">
+      <!-- app.js sẽ render thẻ đấu giá -->
+      <div class="skeleton-list">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
     </div>
-    <div class="footer__row muted">
-      daugia.vin — dữ liệu on-chain • không lưu trữ thông tin cá nhân • giao dịch ký trên ví của bạn
+
+    <div class="pager hide" id="pager">
+      <button id="prev-page" class="btn ghost" type="button">← Trước</button>
+      <span id="page-info">Trang 1</span>
+      <button id="next-page" class="btn ghost" type="button">Sau →</button>
     </div>
-  </footer>
+  </main>
 
-  <!-- Libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
+  <!-- ========= Guide (ngắn gọn) ========= -->
+  <section id="guide" class="guide">
+    <h2>Hướng dẫn nhanh</h2>
+    <ol class="help-list">
+      <li>Nhấn <b>Kết nối ví</b>. Nếu ví chưa có mạng VIC (chainId 88) → thêm mạng.</li>
+      <li>Chọn phiên đấu giá, nhập giá (VIN) ≥ giá hiện tại + bước tối thiểu.</li>
+      <li>Giao dịch ghi on-chain. Hết hạn, người trả cao nhất thắng.</li>
+    </ol>
+    <div class="links-inline">
+      <a id="link-expl-auction" class="link-out" href="#" target="_blank" rel="noopener">VicScan: Auction</a>
+      <a id="link-expl-vin" class="link-out" href="#" target="_blank" rel="noopener">VicScan: VIN</a>
+    </div>
+  </section>
 
-  <!-- Giá VIN: VIC/USDT → 1 VIN = VIC * 100 -->
-  <script>
-    const BINANCE_API_URL = "https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT";
-    async function updateVinPrice() {
-      const el = document.getElementById("vin-price");
-      if (!el) return;
-      try {
-        const res = await fetch(BINANCE_API_URL, { cache: "no-store" });
-        const data = await res.json();
-        const vicPrice = parseFloat(data.price);
-        if (Number.isFinite(vicPrice) && vicPrice > 0) {
-          const vinPrice = vicPrice * 100;
-          el.textContent = `1 VIN = ${vinPrice.toFixed(2)} USD`;
-        } else {
-          el.textContent = "Price unavailable";
-        }
-      } catch {
-        el.textContent = "Price unavailable";
-      }
-    }
-    document.addEventListener("DOMContentLoaded", updateVinPrice);
-    setInterval(updateVinPrice, 60000);
-  </script>
+  <!-- ========= Modals ========= -->
+  <div id="modal-create" class="modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="create-title">
+      <div class="modal-header">
+        <h3 id="create-title">Tạo cuộc đấu giá</h3>
+        <button class="icon-btn" data-close="#modal-create" aria-label="Đóng">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form">
+          <label class="label">Tên tài sản</label>
+          <input id="create-name" class="input" type="text" placeholder="VD: VIN Golden Badge" />
 
-  <!-- App script -->
+          <label class="label">Mô tả</label>
+          <textarea id="create-desc" class="textarea" rows="3" placeholder="Thông tin ngắn gọn"></textarea>
+
+          <label class="label">Hình ảnh (URL)</label>
+          <input id="create-img" class="input" type="url" placeholder="https://..." />
+
+          <div class="row-2">
+            <div>
+              <label class="label">Giá khởi điểm (VIN)</label>
+              <input id="create-start" class="input" type="number" min="0" step="0.000000000000000001" placeholder="0.0" />
+            </div>
+            <div>
+              <label class="label">Bước giá tối thiểu (VIN)</label>
+              <input id="create-step" class="input" type="number" min="0" step="0.000000000000000001" placeholder="0.1" />
+            </div>
+          </div>
+
+          <div class="row-2">
+            <div>
+              <label class="label">Loại tài sản</label>
+              <input id="create-asset-type" class="input" type="text" placeholder="VD: BĐS, Xe, NFT..." />
+            </div>
+            <div>
+              <label class="label">Xã/Phường</label>
+              <input id="create-ward" class="input" type="text" placeholder="VD: Phường A, Xã B..." />
+            </div>
+          </div>
+
+          <label class="label">Thời điểm kết thúc</label>
+          <input id="create-ends" class="input" type="datetime-local" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" data-close="#modal-create" type="button">Huỷ</button>
+        <button id="btn-create-submit" class="btn primary" type="button">Tạo phiên</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-bid" class="modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="bid-title">
+      <div class="modal-header">
+        <h3 id="bid-title">Đặt giá</h3>
+        <button class="icon-btn" data-close="#modal-bid" aria-label="Đóng">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form">
+          <div class="pair"><span>Đang dẫn đầu:</span> <strong><span id="bid-leading">0</span> VIN</strong></div>
+          <div class="pair"><span>Bước tối thiểu:</span> <strong><span id="bid-step">0</span> VIN</strong></div>
+          <label class="label">Giá bạn trả (VIN)</label>
+          <input id="bid-amount" class="input" type="number" min="0" step="0.000000000000000001" placeholder="Nhập số VIN" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" data-close="#modal-bid" type="button">Huỷ</button>
+        <button id="btn-bid-submit" class="btn primary" type="button">Xác nhận đặt giá</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= Toast ========= -->
+  <div id="toast" class="toast" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ========= Vendor: ethers v5 ========= -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <!-- ========= App ========= -->
   <script src="app.js"></script>
+
+  <!-- ========= Minimal bootstrap (không đụng Web3) ========= -->
+  <script>
+    (function () {
+      // Config & explorer links
+      const cfg = JSON.parse(document.getElementById('app-config').textContent.trim());
+      const EXP = cfg.EXPLORER.replace(/\/+$/,'');
+      const AUCTION = cfg.CONTRACTS.AUCTION;
+      const VIN     = cfg.CONTRACTS.VIN;
+
+      // Explorer anchors
+      document.getElementById('link-auction').href = EXP + '/address/' + AUCTION;
+      document.getElementById('link-vin').href     = EXP + '/token/'   + VIN;
+      document.getElementById('link-expl-auction').href = EXP + '/address/' + AUCTION;
+      document.getElementById('link-expl-vin').href     = EXP + '/token/'   + VIN;
+
+      // Mirror links for mobile drawer
+      document.getElementById('m-link-auction').href = EXP + '/address/' + AUCTION;
+      document.getElementById('m-link-vin').href     = EXP + '/token/'   + VIN;
+
+      // Swap link (nên cập nhật URL thật)
+      if (cfg.LINKS && cfg.LINKS.SWAP) {
+        document.getElementById('link-swap').href = cfg.LINKS.SWAP;
+        document.getElementById('m-link-swap').href = cfg.LINKS.SWAP;
+      }
+
+      // Drawer open/close
+      const drawer = document.getElementById('drawer');
+      document.getElementById('menu-toggle').addEventListener('click', () => {
+        drawer.setAttribute('aria-hidden', drawer.getAttribute('aria-hidden') === 'true' ? 'false' : 'true');
+      });
+      document.getElementById('drawer-close').addEventListener('click', () => {
+        drawer.setAttribute('aria-hidden', 'true');
+      });
+
+      // Sync mobile & desktop buttons to same handlers (app.js sẽ gán)
+      ['connect','open-create','search','follow','clear'].forEach(x=>{
+        const d = document.getElementById(
+          x==='connect' ? 'btn-connect' :
+          x==='open-create' ? 'btn-open-create' :
+          x==='search' ? 'btn-search' :
+          x==='follow' ? 'btn-follow' : 'btn-clear'
+        );
+        const m = document.getElementById(
+          x==='connect' ? 'm-btn-connect' :
+          x==='open-create' ? 'm-btn-open-create' :
+          x==='search' ? 'm-btn-search' :
+          x==='follow' ? 'm-btn-follow' : 'm-btn-clear'
+        );
+        if (d && m) m.addEventListener('click', () => d.click());
+      });
+
+      // Mobile input mirrors desktop input for app.js logic
+      const si = document.getElementById('search-input');
+      const sm = document.getElementById('m-search-input');
+      if (si && sm) {
+        sm.addEventListener('input', () => { si.value = sm.value; });
+        si.addEventListener('input', () => { sm.value = si.value; });
+      }
+
+      // Close modal helpers
+      document.querySelectorAll('[data-close]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sel = btn.getAttribute('data-close');
+          const m = document.querySelector(sel);
+          if (m) m.setAttribute('aria-hidden', 'true');
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
