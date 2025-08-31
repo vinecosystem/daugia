@@ -1,30 +1,20 @@
 /* =============================================================
-   daugia.vin — app.js (v10, USD-pegged registration + gas-safe)
+   daugia.vin — app.js (v11, fixed connect + USD fee + gas-safe)
    Chain: Viction (VIC, chainId 88)
    Contract: DauGia @ 0x1765e20ecB8cD78688417A6d4123f2b899775599
    Token: VIN @ 0x941F63807401efCE8afe3C9d88d368bAA287Fac4
    Library: ethers v5 UMD (window.ethers)
-
-   Chính sách:
-   - Đăng ký thu đúng ~1 USD bằng VIN (dựa trên VICUSDT * 100) + 5% biên an toàn.
-   - Bảo đảm allowance >= max(1 USD quy đổi, platformFeeVIN on-chain).
-   - Gas-safe: estimateGas * 1.5; fee +25% (EIP-1559 hoặc gasPrice).
-   - UI: hiện/ẩn “Đăng ký” / “Tạo cuộc đấu giá” theo trạng thái ví.
-   - Tìm kiếm organizer; Theo dõi / Xóa (lọc danh sách theo organizer theo dõi).
    ============================================================= */
 
-// ---------- Constants ----------
+/* ---------------- Constants ---------------- */
 const RPC_URL = "https://rpc.viction.xyz";
 const EXPLORER = "https://vicscan.xyz";
-const CHAIN_ID_HEX = "0x58";
-const CHAIN_ID_DEC = 88;
-
+const CHAIN_ID_HEX = "0x58"; // 88
 const DAUGIA_ADDR = "0x1765e20ecB8cD78688417A6d4123f2b899775599";
 const VIN_ADDR    = "0x941F63807401efCE8afe3C9d88d368bAA287Fac4";
+const BINANCE_API_URL = "https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT"; // 1 VIN ≈ VIC * 100 (USD)
 
-const BINANCE_API_URL = "https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT"; // 1 VIN ≈ 100 * VIC (USD)
-
-// ---------- ABIs ----------
+/* ---------------- ABIs ---------------- */
 const ERC20_ABI = [
   "function symbol() view returns (string)",
   "function decimals() view returns (uint8)",
@@ -57,13 +47,14 @@ const DAUGIA_ABI = [
   {"inputs":[{"internalType":"string","name":"profileCID","type":"string"}],"name":"registerOrganizer","outputs":[],"stateMutability":"nonpayable","type":"function"}
 ];
 
-// ---------- State ----------
+/* ---------------- State ---------------- */
 let provider, signer, account;
 let dauGia, vin;
 let vinDecimals = 18;
 let cacheAuctions = [];
+let balanceTimer = null;
 
-// ---------- DOM ----------
+/* ---------------- DOM ---------------- */
 const $ = (s) => document.querySelector(s);
 const el = {
   // header/menu
@@ -85,9 +76,9 @@ const el = {
   toast: $("#toast"),
 };
 
-// ---------- Utils ----------
+/* ---------------- Utils ---------------- */
 function showToast(msg, ms = 2600){
-  if (!el.toast) { alert(msg); return; }
+  if (!el.toast){ alert(msg); return; }
   el.toast.textContent = msg;
   el.toast.classList.remove("hidden");
   setTimeout(()=> el.toast.classList.add("hidden"), ms);
@@ -96,18 +87,19 @@ function fmt(v){ try { return new Intl.NumberFormat("vi-VN").format(v); } catch 
 function shortAddr(a){ return a ? `${a.slice(0,6)}…${a.slice(-4)}` : ""; }
 function isAddr(a){ return /^0x[a-fA-F0-9]{40}$/.test(a || ""); }
 function fromUnix(s){ if(!s) return "-"; const d=new Date(Number(s)*1000); return d.toLocaleString(); }
-function ipfsLink(cid){ if(!cid) return ""; if(cid.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${cid.replace("ipfs://","")}`; if(cid.startsWith("http")) return cid; return `https://ipfs.io/ipfs/${cid}`; }
+function ipfsLink(cid){ if (!cid) return ""; if (cid.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${cid.replace("ipfs://","")}`; if (cid.startsWith("http")) return cid; return `https://ipfs.io/ipfs/${cid}`; }
 function setHidden(node, yes){ if(node) node.classList.toggle("hidden", !!yes); }
 
-// ---------- Provider / Network ----------
+/* ---------------- Provider / Network ---------------- */
 async function ensureProvider(){
   provider = window.ethereum ? new ethers.providers.Web3Provider(window.ethereum, "any")
                              : new ethers.providers.JsonRpcProvider(RPC_URL);
 }
 async function addOrSwitchToVIC(){
   if (!window.ethereum) return;
-  try { await window.ethereum.request({ method:"wallet_switchEthereumChain", params:[{ chainId: CHAIN_ID_HEX }] }); }
-  catch(e){
+  try {
+    await window.ethereum.request({ method:"wallet_switchEthereumChain", params:[{ chainId: CHAIN_ID_HEX }] });
+  } catch(e){
     if (e.code === 4902){
       await window.ethereum.request({
         method:"wallet_addEthereumChain",
@@ -119,7 +111,7 @@ async function addOrSwitchToVIC(){
   }
 }
 
-// ---------- Contracts ----------
+/* ---------------- Contracts ---------------- */
 async function initContracts(readOnly=true){
   if (!provider) await ensureProvider();
   signer = (!readOnly && provider.getSigner) ? provider.getSigner() : null;
@@ -128,44 +120,48 @@ async function initContracts(readOnly=true){
   try { vinDecimals = await vin.decimals(); } catch {}
 }
 
-// ---------- Gas helpers ----------
+/* ---------------- Gas helpers ---------------- */
 async function buildGasOverrides(contract, method, args){
   const fee = await provider.getFeeData();
   const ov = {};
   if (fee.maxFeePerGas) {
-    ov.maxFeePerGas = ethers.BigNumber.from(fee.maxFeePerGas).mul(125).div(100);           // +25%
+    ov.maxFeePerGas = ethers.BigNumber.from(fee.maxFeePerGas).mul(125).div(100); // +25%
     ov.maxPriorityFeePerGas = ethers.BigNumber.from(fee.maxPriorityFeePerGas || "1500000000").mul(125).div(100);
   } else if (fee.gasPrice) {
-    ov.gasPrice = ethers.BigNumber.from(fee.gasPrice).mul(125).div(100);                    // +25%
+    ov.gasPrice = ethers.BigNumber.from(fee.gasPrice).mul(125).div(100); // +25%
   }
   try {
-    // ✅ FIX: dùng spread arguments, KHÔNG phải ".args"
     const est = await contract.estimateGas[method](...args, ov);
-    ov.gasLimit = est.mul(150).div(100);                                                    // +50%
+    ov.gasLimit = est.mul(150).div(100); // +50%
   } catch {
-    const fallback = { approve: 120000, registerOrganizer: 350000 }[method] || 600000;
-    ov.gasLimit = ethers.BigNumber.from(fallback);
+    ov.gasLimit = ethers.BigNumber.from(600000);
   }
   return ov;
 }
 
-// ---------- Wallet ----------
+/* ---------------- Wallet ---------------- */
 async function connectWallet(){
-  if (!window.ethereum) return showToast("Không tìm thấy ví. Vui lòng cài MetaMask.");
-  await addOrSwitchToVIC();
-  await provider.send("eth_requestAccounts", []);
-  signer = provider.getSigner();
-  account = await signer.getAddress();
+  try{
+    if (!window.ethereum) return showToast("Không tìm thấy ví. Vui lòng cài MetaMask.");
+    await ensureProvider();
+    await addOrSwitchToVIC();
+    await provider.send("eth_requestAccounts", []);
+    signer = provider.getSigner();
+    account = await signer.getAddress();
 
-  setHidden(el.btnConnect, true);
-  setHidden(el.btnDisconnect, false);
-  setHidden(el.walletChip, false);
-  if (el.walletAddress) el.walletAddress.textContent = shortAddr(account);
+    setHidden(el.btnConnect, true);
+    setHidden(el.btnDisconnect, false);
+    setHidden(el.walletChip, false);
+    if (el.walletAddress) el.walletAddress.textContent = shortAddr(account);
 
-  await initContracts(false);
-  await refreshBalances();
-  startBalanceTimer();
-  await refreshRegistrationUI();
+    await initContracts(false);
+    await refreshBalances();
+    startBalanceTimer();
+    await refreshRegistrationUI();
+  }catch(e){
+    console.error(e);
+    showToast(e?.message || "Không kết nối được ví");
+  }
 }
 function disconnectWallet(){
   account = null; signer = null;
@@ -197,12 +193,11 @@ async function tryAutoConnect(){
       startBalanceTimer();
       await refreshRegistrationUI();
     }
-  } catch {}
+  }catch{}
 }
 
-// ---------- Balances ----------
-let balanceTimer = null;
-function stopBalanceTimer(){ if (balanceTimer) { clearInterval(balanceTimer); balanceTimer = null; } }
+/* ---------------- Balances ---------------- */
+function stopBalanceTimer(){ if (balanceTimer){ clearInterval(balanceTimer); balanceTimer = null; } }
 function startBalanceTimer(){ stopBalanceTimer(); balanceTimer = setInterval(refreshBalances, 15000); }
 async function refreshBalances(){
   if (!account || !provider) return;
@@ -218,7 +213,7 @@ async function refreshBalances(){
   } catch {}
 }
 
-// ---------- Registration visibility ----------
+/* ---------------- Registration visibility ---------------- */
 async function isRegistered(addr){
   try{
     const topic0 = ethers.utils.id("OrganizerRegistered(address,string)");
@@ -234,37 +229,34 @@ async function refreshRegistrationUI(){
   setHidden(el.menuCreate, !reg);    // hiện nếu ĐÃ đăng ký
 }
 
-// ---------- Price & 1 USD in VIN ----------
-async function fetchVinUsdPrice(){ // returns { vinUsd: number }
-  const res = await fetch(BINANCE_API_URL, { cache: "no-store" });
+/* ---------------- Price → 1 USD in VIN ---------------- */
+async function fetchVinUsdPrice(){ // returns { vinUsd:number }
+  const res = await fetch(BINANCE_API_URL, { cache:"no-store" });
   const data = await res.json();
-  const vic = parseFloat(data.price);
+  const vic = parseFloat(data?.price);
   if (!Number.isFinite(vic) || vic <= 0) throw new Error("Giá VIC không hợp lệ");
-  const vinUsd = vic * 100; // 1 VIN = 100 * VIC (USD)
+  const vinUsd = vic * 100; // 1 VIN = VIC*100 USD
   return { vinUsd };
 }
-
 function calcOneUsdInVinUnits(vinUsd, decimals){
-  // Tính VIN (đơn vị nhỏ nhất) tương ứng 1 USD
-  // units = ceil(10^decimals / vinUsd)
+  // units = ceil(10^decimals / vinUsd) ; +5% biên
   const D = BigInt(decimals);
   const TENP = BigInt(10) ** D;
-  const SCALE = 100000000n; // 1e8 để tránh sai số
+  const SCALE = 100000000n;
   const vinUsdScaled = BigInt(Math.round(vinUsd * Number(SCALE)));
   if (vinUsdScaled <= 0n) throw new Error("vinUsdScaled <= 0");
   const units = (TENP * SCALE + vinUsdScaled - 1n) / vinUsdScaled; // ceil
-  // +5% biên an toàn
-  const unitsSafe = (units * 105n) / 100n;
+  const unitsSafe = (units * 105n) / 100n; // +5%
   return ethers.BigNumber.from(unitsSafe.toString());
 }
-
 async function oneUsdVinAmountBN(){
   const { vinUsd } = await fetchVinUsdPrice();
   return calcOneUsdInVinUnits(vinUsd, vinDecimals || 18);
 }
 
-// ---------- Fees / Approvals ----------
+/* ---------------- Fees / Approvals ---------------- */
 async function ensureAllowanceAtLeast(requiredBN){
+  if (!account) throw new Error("Chưa kết nối ví");
   const allowance = await vin.allowance(account, DAUGIA_ADDR);
   if (allowance.gte(requiredBN)) return;
   const ov = await buildGasOverrides(vin, "approve", [DAUGIA_ADDR, requiredBN]);
@@ -273,44 +265,42 @@ async function ensureAllowanceAtLeast(requiredBN){
   await tx.wait();
 }
 
-// ---------- Registration (1 USD in VIN) ----------
+/* ---------------- Registration (≈1 USD in VIN) ---------------- */
 async function handleRegister(){
   if (!account) return showToast("Vui lòng kết nối ví.");
   try{
-    // 1) Lấy số VIN ~ 1 USD (cộng biên) + so với platformFeeVIN on-chain (nếu cao hơn thì lấy cao hơn)
-    const oneUsd = await oneUsdVinAmountBN();
-    let required = oneUsd;
-    try {
+    // 1) Số VIN ≈ 1 USD (biên +5%), so với platformFeeVIN on-chain (lấy max)
+    let required = await oneUsdVinAmountBN();
+    try{
       const feeOnChain = await dauGia.platformFeeVIN();
       if (feeOnChain.gt(required)) required = feeOnChain;
-    } catch {}
+    }catch{}
 
-    // 2) Bảo đảm allowance đủ
+    // 2) đảm bảo allowance
     await ensureAllowanceAtLeast(required);
 
-    // 3) Gọi registerOrganizer với gas overrides
+    // 3) gọi registerOrganizer với gas overrides
     const args = ["" /* profileCID optional */];
-    const ov   = await buildGasOverrides(dauGia, "registerOrganizer", args);
-    const tx   = await dauGia.registerOrganizer(...args, ov);
+    const ov = await buildGasOverrides(dauGia, "registerOrganizer", args);
+    const tx = await dauGia.registerOrganizer(...args, ov);
     showToast("Đang gửi đăng ký…");
     await tx.wait();
 
-    // 4) Cập nhật UI
+    // 4) UI
     showToast("Đăng ký thành công.");
     await refreshRegistrationUI();
   }catch(e){
     console.error(e);
-    const msg = e?.data?.message || e?.message || "Đăng ký thất bại";
-    showToast(msg);
+    showToast(e?.data?.message || e?.message || "Đăng ký thất bại");
   }
 }
 
-// ---------- Auctions (read-only) ----------
+/* ---------------- Auctions (read-only) ---------------- */
 async function loadAllAuctions(){
   cacheAuctions = [];
   if (el.list) el.list.innerHTML = "";
   try{
-    // totalAuctions() (gọi raw vì ABI rút gọn)
+    // totalAuctions() qua raw call (ABI rút gọn)
     const iface = new ethers.utils.Interface(["function totalAuctions() view returns (uint256)"]);
     const data  = iface.encodeFunctionData("totalAuctions", []);
     const ret   = await (provider || new ethers.providers.JsonRpcProvider(RPC_URL)).call({ to: DAUGIA_ADDR, data });
@@ -368,7 +358,7 @@ function applyFiltersAndRender(){
   for (const {id, a} of items){ renderAuctionCard(id, a); }
 }
 
-// ---------- Search & Follow ----------
+/* ---------------- Search & Follow ---------------- */
 async function searchByOrganizer(){
   const addr = (el.inpOrganizer?.value || "").trim();
   if (!isAddr(addr)) return showToast("Nhập địa chỉ ví người tạo hợp lệ");
@@ -405,7 +395,7 @@ function clearFollow(){
   applyFiltersAndRender();
 }
 
-// ---------- Init ----------
+/* ---------------- Init ---------------- */
 window.addEventListener("load", async () => {
   await ensureProvider();
   await initContracts(true);
@@ -416,17 +406,17 @@ window.addEventListener("load", async () => {
     window.ethereum.on("chainChanged", () => window.location.reload());
   }
 
-  // Header/menu
+  // Header/menu events (null-safe)
   el.btnConnect?.addEventListener("click", connectWallet);
   el.btnDisconnect?.addEventListener("click", disconnectWallet);
   el.btnRegister?.addEventListener("click", handleRegister);
   el.menuCreate?.addEventListener("click", (e)=>{ e.preventDefault(); showToast("Tạo cuộc đấu giá: sẽ mở ở bản kế tiếp."); });
 
-  // Search / Follow
+  // Search & Follow
   el.btnSearch?.addEventListener("click", searchByOrganizer);
   el.btnFollowAdd?.addEventListener("click", addFollowFromInput);
   el.btnFollowClear?.addEventListener("click", clearFollow);
 
-  // Auto-connect nếu ví đã cấp quyền
+  // Auto-connect nếu người dùng đã cho phép
   await tryAutoConnect();
 });
