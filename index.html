@@ -25,7 +25,11 @@
       </div>
     </div>
     <div class="nav__right">
-      <div class="net-pill">VIC: <span id="chain-status">đang kiểm tra…</span></div>
+      <!-- Giá VIN (thay cho VIC: OK) -->
+      <div class="net-pill" id="vin-price-pill">
+        <span id="vin-price">đang tải…</span>
+      </div>
+
       <!-- Wallet chip (ẩn trước khi kết nối) -->
       <div id="wallet-chip" class="wallet-chip hidden">
         <span id="wallet-address">0x…</span>
@@ -34,6 +38,7 @@
         <span class="sep">•</span>
         <span id="bal-vin">VIN: -</span>
       </div>
+
       <button id="btn-connect" class="btn btn-primary" title="Kết nối ví (Viction)">Kết nối ví</button>
       <button id="btn-disconnect" class="btn btn-secondary hidden" title="Ngắt kết nối ví">Ngắt kết nối</button>
     </div>
@@ -46,23 +51,23 @@
     </div>
   </section>
 
-  <!-- Toolbar (theo yêu cầu) -->
+  <!-- Toolbar -->
   <section class="toolbar">
     <div class="toolbar__row" style="flex-wrap:wrap; gap:10px; align-items:end; max-width:1080px; margin:0 auto;">
 
-      <!-- (2) Đăng ký — ẩn khi chưa kết nối; hiện khi đã kết nối & chưa đăng ký -->
+      <!-- Đăng ký — ẩn khi chưa kết nối; hiện khi đã kết nối & chưa đăng ký -->
       <button id="btn-register" class="btn btn-outline hidden" title="Đăng ký tổ chức — phí 1$ VIN">Đăng ký (1$ VIN)</button>
 
-      <!-- (3) Tìm kiếm theo địa chỉ ví (organizer) -->
+      <!-- Tìm kiếm theo địa chỉ ví người tạo cuộc đấu giá -->
       <div class="field" style="max-width:420px; min-width:260px;">
-        <label for="inp-organizer">Tìm kiếm (theo địa chỉ ví organizer)</label>
+        <label for="inp-organizer">Tìm kiếm (theo địa chỉ ví người tạo cuộc đấu giá)</label>
         <div style="display:flex; gap:6px;">
-          <input id="inp-organizer" type="text" placeholder="0x… organizer" />
+          <input id="inp-organizer" type="text" placeholder="0x… người tạo" />
           <button id="btn-search" class="btn">Tìm</button>
         </div>
       </div>
 
-      <!-- (4) Theo dõi ví để lọc danh sách -->
+      <!-- Theo dõi ví để lọc danh sách -->
       <div class="field" style="max-width:520px; min-width:260px;">
         <label for="inp-follow">Theo dõi ví (lọc danh sách theo organizer)</label>
         <div style="display:flex; gap:6px;">
@@ -76,14 +81,12 @@
     </div>
   </section>
 
-  <!-- Sub-status row: bộ lọc + phí nền tảng + Giá VIN -->
+  <!-- Sub-status row: chỉ còn bộ lọc + phí nền tảng -->
   <section style="max-width:1080px; margin:6px auto 0; padding:0 16px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
     <span class="muted">Trạng thái:</span>
     <span id="filter-pill" class="badge hidden"></span>
     <span class="sep">•</span>
     <span class="muted">Phí nền tảng (VIN): <strong id="platform-fee" class="muted">…</strong></span>
-    <span class="sep">•</span>
-    <span class="muted">Giá <strong>VIN</strong> (ước tính): <strong id="vin-price" class="muted">đang tải…</strong></span>
   </section>
 
   <!-- Danh sách cuộc đấu giá -->
@@ -93,26 +96,25 @@
   <div id="toast" class="toast hidden"></div>
 
   <footer class="footer">
-  <div class="footer__row">
-    <a href="https://t.me/vinecosystem" target="_blank" rel="noopener">Telegram</a>
-    <span class="sep">•</span>
-    <a href="https://x.com/vinecosystem" target="_blank" rel="noopener">X</a>
-    <span class="sep">•</span>
-    <a href="https://github.com/vinecosystem" target="_blank" rel="noopener">GitHub</a>
-    <span class="sep">•</span>
-    <a href="https://vicscan.xyz/address/0x1765e20ecB8cD78688417A6d4123f2b899775599" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
-    <span class="sep">•</span>
-    <a href="https://vicscan.xyz/token/0x941F63807401efCE8afe3C9d88d368bAA287Fac4" target="_blank" rel="noopener">VIN token</a>
-    <span class="sep">•</span>
-    <a href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noopener">Swap VIN/VIC</a>
-    <span class="sep">•</span>
-    <a href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" target="_blank" rel="noopener">Hướng dẫn</a>
-  </div>
-  <div class="footer__row muted">
-    daugia.vin — dữ liệu on-chain • không lưu trữ thông tin cá nhân • giao dịch ký trên ví của bạn
-  </div>
-</footer>
-
+    <div class="footer__row">
+      <a href="https://t.me/vinecosystem" target="_blank" rel="noopener">Telegram</a>
+      <span class="sep">•</span>
+      <a href="https://x.com/vinecosystem" target="_blank" rel="noopener">X</a>
+      <span class="sep">•</span>
+      <a href="https://github.com/vinecosystem" target="_blank" rel="noopener">GitHub</a>
+      <span class="sep">•</span>
+      <a href="https://vicscan.xyz/address/0x1765e20ecB8cD78688417A6d4123f2b899775599" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
+      <span class="sep">•</span>
+      <a href="https://vicscan.xyz/token/0x941F63807401efCE8afe3C9d88d368bAA287Fac4" target="_blank" rel="noopener">VIN token</a>
+      <span class="sep">•</span>
+      <a href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noopener">Swap VIN/VIC</a>
+      <span class="sep">•</span>
+      <a href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" target="_blank" rel="noopener">Hướng dẫn</a>
+    </div>
+    <div class="footer__row muted">
+      daugia.vin — dữ liệu on-chain • không lưu trữ thông tin cá nhân • giao dịch ký trên ví của bạn
+    </div>
+  </footer>
 
   <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
@@ -143,7 +145,7 @@
     setInterval(updateVinPrice, 60000);
   </script>
 
-  <!-- App script (đồng bộ v3: connect/disconnect + register-guard + follow) -->
+  <!-- App script (v5: connect/disconnect + register-guard + follow) -->
   <script src="app.js"></script>
 </body>
 </html>
