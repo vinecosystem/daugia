@@ -2,14 +2,13 @@
    daugia.vin — style.css
    - Dark UI hiện đại, chuyên nghiệp, dễ đọc
    - Menu & nút nổi bật (hover/focus mượt)
-   - 1 ô tìm kiếm + 3 nút (Tìm / Theo dõi / Xóa)
-   - Danh sách thẻ, footer dạng dock cố định
+   - Tìm kiếm đơn giản + nút Swap, Hướng dẫn
    - Responsive mượt trên mobile & desktop
    ========================================================= */
 
 /* ---------- Theme ---------- */
 :root{
-  --bg: #0b1220;
+  --bg: #0b0f18;
   --bg-2: #0f1628;
   --surface: #111a2e;
   --card: #0e172a;
