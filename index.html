@@ -76,12 +76,14 @@
     </div>
   </section>
 
-  <!-- Sub-status row: bộ lọc + phí nền tảng -->
+  <!-- Sub-status row: bộ lọc + phí nền tảng + Giá VIN -->
   <section style="max-width:1080px; margin:6px auto 0; padding:0 16px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
     <span class="muted">Trạng thái:</span>
     <span id="filter-pill" class="badge hidden"></span>
     <span class="sep">•</span>
     <span class="muted">Phí nền tảng (VIN): <strong id="platform-fee" class="muted">…</strong></span>
+    <span class="sep">•</span>
+    <span class="muted">Giá <strong>VIN</strong> (ước tính): <strong id="vin-price" class="muted">đang tải…</strong></span>
   </section>
 
   <!-- Danh sách cuộc đấu giá -->
@@ -105,6 +107,33 @@
 
   <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
+
+  <!-- Price Script: lấy VIC/USDT từ Binance rồi quy đổi VIN = VIC * 100 -->
+  <script>
+    const BINANCE_API_URL = "https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT";
+    async function updateVinPrice() {
+      const el = document.getElementById("vin-price");
+      if (!el) return;
+      try {
+        const res = await fetch(BINANCE_API_URL, { cache: "no-store" });
+        const data = await res.json();
+        const vicPrice = parseFloat(data.price);
+        if (Number.isFinite(vicPrice)) {
+          const vinPrice = vicPrice * 100; // theo yêu cầu: 1 VIN = 100 * VIC
+          el.textContent = `1 VIN = ${vinPrice.toFixed(2)} USD`;
+        } else {
+          el.textContent = "Price unavailable";
+        }
+      } catch (err) {
+        console.error("Failed to fetch VIN price:", err);
+        const ts = new Date().toLocaleTimeString();
+        el.textContent = `Price unavailable (${ts})`;
+      }
+    }
+    document.addEventListener("DOMContentLoaded", updateVinPrice);
+    setInterval(updateVinPrice, 60000);
+  </script>
+
   <!-- App script (đồng bộ v3: connect/disconnect + register-guard + follow) -->
   <script src="app.js"></script>
 </body>
