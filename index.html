@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>daugia.vin — Đấu giá minh bạch trên blockchain</title>
-  <meta name="description" content="DApp đấu giá on-chain trên Viction (VIC). Tìm kiếm, theo dõi, tạo và xem các cuộc đấu giá minh bạch — công bằng — bất biến." />
+  <meta name="description" content="Nền tảng đấu giá on-chain trên Viction (VIC). Vận hành tự động bằng hợp đồng thông minh; minh bạch — công bằng — bất biến." />
 
-  <!-- Favicons -->
+  <!-- Favicons (tùy chọn) -->
   <link rel="icon" type="image/png" sizes="32x32" href="vin64.png" />
   <link rel="icon" type="image/png" sizes="64x64" href="vin64.png" />
   <link rel="apple-touch-icon" sizes="128x128" href="vin128.png" />
@@ -31,10 +31,10 @@
         <span id="vin-price">đang tải…</span>
       </div>
 
-      <!-- Menu chính -->
+      <!-- Menu chính (ẩn/hiện bằng app.js) -->
       <a id="menu-guide" class="btn btn-ghost" href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" target="_blank" rel="noopener">Hướng dẫn</a>
       <a id="menu-create" class="btn btn-outline hidden" href="#" title="Tạo cuộc đấu giá">Tạo cuộc đấu giá</a>
-      <button id="btn-register" class="btn btn-outline hidden" title="Đăng ký tổ chức — phí 1$ VIN">Đăng ký</button>
+      <button id="btn-register" class="btn btn-outline hidden" title="Đăng ký tổ chức — phí ~1 USD bằng VIN">Đăng ký</button>
 
       <!-- Wallet -->
       <div id="wallet-chip" class="wallet-chip hidden">
@@ -52,10 +52,10 @@
     <div class="hero__content" style="text-align:center;">
       <h2 style="font-size:26px; margin-bottom:8px;">Minh bạch — Công bằng — Bất biến</h2>
       <p class="muted" style="max-width:820px; margin:0 auto 16px;">
-        Nền tảng vận hành hoàn toàn tự động bằng <strong>hợp đồng thông minh</strong> trên chuỗi; mọi người có thể tự kiểm chứng qua liên kết <strong>“Hợp đồng đấu giá”</strong> ở cuối trang.
-        Nền tảng <strong>không nắm giữ tiền đặt cọc hay tiền bán tài sản</strong>; các khoản này do <strong>bên tổ chức đấu giá</strong> thực hiện ngoài chuỗi (off-chain).
+        Nền tảng vận hành tự động bằng <strong>hợp đồng thông minh</strong> trên chuỗi; mọi người có thể tự kiểm chứng qua liên kết <strong>“Hợp đồng đấu giá”</strong> ở cuối trang.
+        Không nắm giữ tiền đặt cọc hay tiền bán tài sản; các khoản này do <strong>bên tổ chức đấu giá</strong> thực hiện ngoài chuỗi (off-chain).
         Nhiệm vụ duy nhất là tạo ra một cuộc đấu giá <strong>công khai, minh bạch và công bằng</strong> — không ai can thiệp.
-        Vui lòng xem kỹ <a href="https://t.me/daugiavin" target="_blank" rel="noopener">Hướng dẫn sử dụng</a>
+        Xem kỹ <a href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" target="_blank" rel="noopener">Hướng dẫn sử dụng</a> hoặc tham gia Telegram <a href="https://t.me/daugiavin" target="_blank" rel="noopener">@daugiavin</a> để hiểu rõ cách dùng.
       </p>
     </div>
   </section>
@@ -87,7 +87,7 @@
       <span class="sep">•</span>
       <a href="https://vicscan.xyz/token/0x941F63807401efCE8afe3C9d88d368bAA287Fac4" target="_blank" rel="noopener">VIN token</a>
       <span class="sep">•</span>
-      <a href="https://vinswap.vin" target="_blank" rel="noopener">Swap VIN/VIC</a>
+      <a href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noopener">Swap VIN/VIC</a>
       <span class="sep">•</span>
       <a href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" target="_blank" rel="noopener">Hướng dẫn</a>
     </div>
@@ -109,10 +109,12 @@
         const res = await fetch(BINANCE_API_URL, { cache: "no-store" });
         const data = await res.json();
         const vicPrice = parseFloat(data.price);
-        if (Number.isFinite(vicPrice)) {
+        if (Number.isFinite(vicPrice) && vicPrice > 0) {
           const vinPrice = vicPrice * 100;
           el.textContent = `1 VIN = ${vinPrice.toFixed(2)} USD`;
-        } else el.textContent = "Price unavailable";
+        } else {
+          el.textContent = "Price unavailable";
+        }
       } catch {
         el.textContent = "Price unavailable";
       }
