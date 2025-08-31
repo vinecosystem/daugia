@@ -1,9 +1,9 @@
 /* =========================================================
-   daugia.vin — style.css (synced with latest index.html)
+   daugia.vin — style.css
    - Dark UI hiện đại, chuyên nghiệp, dễ đọc
-   - Menu & nút nổi bật (gradient + shadow + hover/focus)
+   - Menu & nút nổi bật (hover/focus mượt)
    - 1 ô tìm kiếm + 3 nút (Tìm / Theo dõi / Xóa)
-   - Danh sách thẻ, footer dạng dock cố định ở đáy
+   - Danh sách thẻ, footer dạng dock cố định
    - Responsive mượt trên mobile & desktop
    ========================================================= */
 
@@ -45,7 +45,7 @@ a{ color:var(--accent); text-decoration:none; }
 a:hover{ text-decoration:underline; }
 a.btn{ text-decoration:none; }
 
-/* ---------- Buttons (nổi bật) ---------- */
+/* ---------- Buttons ---------- */
 .btn{
   appearance:none;
   border:1px solid var(--border);
@@ -54,7 +54,7 @@ a.btn{ text-decoration:none; }
   padding:12px 16px;
   border-radius:12px;
   cursor:pointer;
-  transition:transform .06s ease, box-shadow .18s ease, border-color .18s ease, filter .18s ease;
+  transition:transform .06s ease, box-shadow .18s ease, border-color .18s ease, filter .18s ease, background .18s ease;
   box-shadow:0 10px 26px -12px var(--shadow);
   font-weight:600; letter-spacing:.2px; white-space:nowrap;
 }
@@ -68,10 +68,18 @@ a.btn{ text-decoration:none; }
   box-shadow:0 12px 28px -10px rgba(34,197,94,.35), 0 1px 0 0 rgba(255,255,255,.08) inset;
 }
 .btn-primary:hover{ filter:brightness(1.05); }
-.btn-secondary{ background:linear-gradient(180deg,#223049,#1a263d); border-color:#2b3e62; color:#d8e2f2; }
-.btn-outline{ background:transparent; border-color:#2b466e; color:#e5ecf7; }
+
+.btn-secondary{
+  background:linear-gradient(180deg,#223049,#1a263d);
+  border-color:#2b3e62; color:#d8e2f2;
+}
+.btn-outline{
+  background:transparent; border-color:#2b466e; color:#e5ecf7;
+}
 .btn-outline:hover{ background:rgba(59,130,246,.08); }
-.btn-ghost{ background:transparent; border-color:transparent; color:var(--muted); }
+.btn-ghost{
+  background:transparent; border-color:transparent; color:var(--muted);
+}
 .btn-ghost:hover{ background:rgba(255,255,255,.06); color:#cfe4ff; }
 
 /* Focus ring rõ ràng (A11y) */
@@ -79,7 +87,6 @@ a.btn{ text-decoration:none; }
 
 /* ---------- Inputs ---------- */
 .field{ display:flex; flex-direction:column; gap:6px; width:100%; }
-.field>label{ font-size:13px; color:#b7c3db; }
 .field>input, .field>textarea, .field>select{
   width:100%;
   background:var(--surface); color:var(--text);
@@ -135,15 +142,6 @@ a.btn{ text-decoration:none; }
   display:flex; gap:10px; align-items:end; flex-wrap:wrap;
 }
 
-/* ---------- Badge (nếu dùng ở thẻ) ---------- */
-.badge{
-  padding:2px 8px; border-radius:999px; font-size:12px;
-  border:1px solid var(--border); background:#0b1322; color:#cfe4ff;
-}
-.badge.success{ border-color:rgba(34,197,94,.4); color:#a7f3d0; }
-.badge.warn{ border-color:rgba(245,158,11,.3); color:#fde68a; }
-.badge.error{ border-color:rgba(239,68,68,.3); color:#fecaca; }
-
 /* ---------- Main list (cards) ---------- */
 .container{
   max-width:1080px; margin:16px auto 36px; padding:0 16px;
@@ -161,6 +159,15 @@ a.btn{ text-decoration:none; }
 }
 .card__row .value{ color:var(--text); font-weight:500; }
 .card__actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+/* ---------- Badges ---------- */
+.badge{
+  padding:2px 8px; border-radius:999px; font-size:12px;
+  border:1px solid var(--border); background:#0b1322; color:#cfe4ff;
+}
+.badge.success{ border-color:rgba(34,197,94,.4); color:#a7f3d0; }
+.badge.warn{ border-color:rgba(245,158,11,.3); color:#fde68a; }
+.badge.error{ border-color:rgba(239,68,68,.3); color:#fecaca; }
 
 /* ---------- Toast ---------- */
 .toast{
