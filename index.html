@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="format-detection" content="telephone=no,email=no,address=no" />
   <meta name="theme-color" content="#0b0f18" />
-  <title>daugia.vin — Đấu giá VIN minh bạch on-chain</title>
+  <title>daugia.vin — Đấu giá VIN minh bạch trên blockchain</title>
 
   <!-- Favicons -->
   <link rel="icon" type="image/png" sizes="32x32" href="vin64.png?v=1">
@@ -13,7 +13,6 @@
   <link rel="apple-touch-icon" sizes="128x128" href="vin128.png?v=1">
   <link rel="shortcut icon" href="vin64.png?v=1">
 
-  <!-- Styles -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -28,113 +27,117 @@
       "AUCTION": "0x1765e20ecB8cD78688417A6d4123f2b899775599",
       "VIN":     "0x941F63807401efCE8afe3C9d88d368bAA287Fac4"
     },
-    "ASSETS": {
-      "FAVICON_64": "vin64.png",
-      "LOGO_128":   "vin128.png"
-    },
     "LINKS": {
-      "SWAP": "#",      /* cập nhật sau: link Swap VIN/VIC */
+      "SWAP": "https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi",
       "SOURCE": "#"
     }
   }
   </script>
 
-  <!-- ========= Top Bar ========= -->
-  <header class="topbar">
+  <!-- ========= Topbar ========= -->
+  <header class="topbar" role="banner">
     <div class="brand-wrap">
       <button id="menu-toggle" class="icon-btn" aria-label="Mở menu">☰</button>
       <img id="logo-main" src="vin128.png" alt="VIN" width="40" height="40" />
       <div class="brand">
         <h1 class="brand-title">daugia.vin</h1>
-        <p class="brand-sub" id="slogan">Minh bạch • Nhanh • On-chain</p>
+        <p class="brand-sub">daugia.vin — Đấu giá VIN minh bạch trên blockchain</p>
       </div>
     </div>
 
-    <nav class="menu-desktop" aria-label="Menu chính (desktop)">
+    <!-- Ô tìm kiếm trung tâm -->
+    <div class="search-center" role="search">
+      <input id="search-input" class="input" type="text" placeholder="Tìm theo tên/mô tả/mã hồ sơ/địa chỉ ví…" />
+      <button id="btn-search" class="btn" aria-label="Tìm kiếm">Tìm</button>
+    </div>
+
+    <!-- Menu phải (desktop) -->
+    <nav class="menu-right" aria-label="Menu">
+      <!-- Hiện khi CHƯA kết nối -->
       <button id="btn-connect" class="btn primary">Kết nối ví</button>
-      <button id="btn-open-create" class="btn accent">Tạo cuộc đấu giá</button>
-
-      <!-- Ô tìm kiếm gọn, tích hợp nút -->
-      <div class="search-inline">
-        <input id="search-input" class="input" type="text" placeholder="Tìm theo tên, mô tả, địa chỉ ví..." />
-        <button id="btn-search" class="btn">Tìm</button>
-        <button id="btn-follow" class="btn ghost" title="Theo dõi kết quả theo từ khóa">Theo dõi</button>
-        <button id="btn-clear" class="btn ghost" title="Xóa bộ lọc">Xóa</button>
+      <a class="menu-link" href="#guide">Hướng dẫn</a>
+      <div class="menu-item has-sub">
+        <button class="menu-btn" aria-haspopup="true" aria-expanded="false">Tra cứu ▾</button>
+        <div class="menu-dropdown" role="menu">
+          <a id="link-swap" class="menu-link" role="menuitem" href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noopener">Swap VIN/VIC</a>
+          <a id="link-auction" class="menu-link" role="menuitem" href="#" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
+          <a id="link-vin" class="menu-link" role="menuitem" href="#" target="_blank" rel="noopener">VIN token</a>
+          <div class="separator"></div>
+          <div class="menu-inline" role="menuitem">
+            <span>Giá VIN:</span>
+            <span id="vin-price" class="chip soft">Đang tải...</span>
+          </div>
+        </div>
       </div>
 
-      <a id="link-guide" class="menu-link" href="#guide">Hướng dẫn</a>
-      <a id="link-swap" class="menu-link" href="#" target="_blank" rel="noopener">Swap VIN/VIC</a>
-      <a id="link-auction" class="menu-link" href="#" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
-      <a id="link-vin" class="menu-link" href="#" target="_blank" rel="noopener">VIN token</a>
-    </nav>
+      <!-- Bật sau khi KẾT NỐI (app.js điều khiển) -->
+      <div id="account-menu" class="menu-item has-sub hide">
+        <button class="menu-btn" aria-haspopup="true" aria-expanded="false">Tài khoản ▾</button>
+        <div class="menu-dropdown" role="menu">
+          <button id="btn-register" class="btn hide js-hide-until-connected" role="menuitem">Đăng ký</button>
+          <button id="btn-open-create" class="btn accent hide js-hide-until-registered" role="menuitem">Tạo cuộc đấu giá</button>
+        </div>
+      </div>
 
-    <!-- Chip trạng thái -->
-    <div class="chips">
-      <div class="chip" id="network-chip">VIC • <span id="net-status">Chưa kết nối</span></div>
-      <div class="chip hide" id="account-chip" title="Địa chỉ ví"></div>
-    </div>
+      <!-- Chip trạng thái gọn -->
+      <div class="chips">
+        <div class="chip" id="network-chip">VIC • <span id="net-status">Chưa kết nối</span></div>
+        <div class="chip hide" id="account-chip" title="Địa chỉ ví"></div>
+      </div>
+    </nav>
   </header>
 
-  <!-- ========= Off-canvas Menu (mobile) ========= -->
+  <!-- Slogan (mảnh, không chiếm chỗ) -->
+  <section class="mission-note" role="note">
+    <p>
+      <strong>Công bằng • Minh bạch • Tự động • Trên Blockchain</strong><br/>
+      Vận hành 100% bằng hợp đồng thông minh, không ai có thể can thiệp.<br/>
+      <em><a href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" class="mission-link" target="_blank" rel="noopener">Xem kỹ hướng dẫn sử dụng</a> trước khi tham gia.</em>
+    </p>
+  </section>
+
+  <!-- ========= Drawer (mobile) ========= -->
   <aside id="drawer" class="drawer" aria-hidden="true" aria-label="Menu di động">
     <div class="drawer-header">
       <div class="drawer-title">Menu</div>
       <button class="icon-btn" id="drawer-close" aria-label="Đóng">✕</button>
     </div>
-    <div class="drawer-body">
-      <button id="m-btn-connect" class="btn primary block">Kết nối ví</button>
-      <button id="m-btn-open-create" class="btn accent block">Tạo cuộc đấu giá</button>
 
-      <div class="drawer-group">
-        <label class="label">Tìm kiếm</label>
-        <div class="search-stack">
-          <input id="m-search-input" class="input" type="text" placeholder="Từ khóa, ví..." />
-          <div class="row">
-            <button id="m-btn-search" class="btn">Tìm</button>
-            <button id="m-btn-follow" class="btn ghost">Theo dõi</button>
-            <button id="m-btn-clear" class="btn ghost">Xóa</button>
+    <!-- Search (mobile) -->
+    <div class="drawer-search">
+      <input id="m-search-input" class="input" type="text" placeholder="Từ khóa…" />
+      <button id="m-btn-search" class="btn">Tìm</button>
+    </div>
+
+    <div class="accordion">
+      <details open>
+        <summary>Truy cập nhanh</summary>
+        <div class="drawer-group">
+          <button id="m-btn-connect" class="btn primary block">Kết nối ví</button>
+          <a class="menu-link block" href="#guide">Hướng dẫn</a>
+          <a id="m-link-swap" class="menu-link block" href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noopener">Swap VIN/VIC</a>
+          <a id="m-link-auction" class="menu-link block" href="#" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
+          <a id="m-link-vin" class="menu-link block" href="#" target="_blank" rel="noopener">VIN token</a>
+          <div class="menu-inline">
+            <span>Giá VIN:</span> <span id="m-vin-price" class="chip soft">Đang tải...</span>
           </div>
         </div>
-      </div>
+      </details>
 
-      <div class="drawer-links">
-        <a class="menu-link block" href="#guide">Hướng dẫn</a>
-        <a id="m-link-swap" class="menu-link block" href="#" target="_blank" rel="noopener">Swap VIN/VIC</a>
-        <a id="m-link-auction" class="menu-link block" href="#" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
-        <a id="m-link-vin" class="menu-link block" href="#" target="_blank" rel="noopener">VIN token</a>
-      </div>
+      <details id="m-account" class="hide">
+        <summary>Tài khoản</summary>
+        <div class="drawer-group">
+          <button id="m-btn-register" class="btn hide js-hide-until-connected block">Đăng ký</button>
+          <button id="m-btn-open-create" class="btn accent hide js-hide-until-registered block">Tạo cuộc đấu giá</button>
+        </div>
+      </details>
     </div>
   </aside>
 
-  <!-- ========= Filter Bar (nhẹ, 1 hàng) ========= -->
-  <section class="filterbar">
-    <div class="filters">
-      <select id="filter-status" class="select" aria-label="Trạng thái">
-        <option value="all">Tất cả</option>
-        <option value="active">Đang diễn ra</option>
-        <option value="upcoming">Sắp diễn ra</option>
-        <option value="ended">Đã kết thúc</option>
-      </select>
-
-      <!-- Phân loại theo Loại tài sản & Xã/Phường -->
-      <select id="filter-asset" class="select" aria-label="Loại tài sản">
-        <option value="all">Loại tài sản: Tất cả</option>
-        <!-- app.js sẽ nạp danh mục từ on-chain -->
-      </select>
-
-      <select id="filter-ward" class="select" aria-label="Xã/Phường">
-        <option value="all">Xã/Phường: Tất cả</option>
-        <!-- app.js sẽ nạp danh mục từ on-chain -->
-      </select>
-
-      <button id="btn-refresh" class="btn ghost">↻</button>
-    </div>
-  </section>
-
-  <!-- ========= Main Content: Auction List ========= -->
-  <main class="content">
+  <!-- ========= Main Content: chỉ danh sách đấu giá ========= -->
+  <main class="content" role="main">
     <div id="auction-list" class="grid">
-      <!-- app.js sẽ render thẻ đấu giá -->
+      <!-- app.js sẽ render các thẻ đấu giá -->
       <div class="skeleton-list">
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
@@ -149,20 +152,6 @@
     </div>
   </main>
 
-  <!-- ========= Guide (ngắn gọn) ========= -->
-  <section id="guide" class="guide">
-    <h2>Hướng dẫn nhanh</h2>
-    <ol class="help-list">
-      <li>Nhấn <b>Kết nối ví</b>. Nếu ví chưa có mạng VIC (chainId 88) → thêm mạng.</li>
-      <li>Chọn phiên đấu giá, nhập giá (VIN) ≥ giá hiện tại + bước tối thiểu.</li>
-      <li>Giao dịch ghi on-chain. Hết hạn, người trả cao nhất thắng.</li>
-    </ol>
-    <div class="links-inline">
-      <a id="link-expl-auction" class="link-out" href="#" target="_blank" rel="noopener">VicScan: Auction</a>
-      <a id="link-expl-vin" class="link-out" href="#" target="_blank" rel="noopener">VicScan: VIN</a>
-    </div>
-  </section>
-
   <!-- ========= Modals ========= -->
   <div id="modal-create" class="modal" aria-hidden="true">
     <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="create-title">
@@ -173,10 +162,10 @@
       <div class="modal-body">
         <div class="form">
           <label class="label">Tên tài sản</label>
-          <input id="create-name" class="input" type="text" placeholder="VD: VIN Golden Badge" />
+          <input id="create-name" class="input" type="text" placeholder="VD: Lô đất, ô tô, tài sản khác…" />
 
           <label class="label">Mô tả</label>
-          <textarea id="create-desc" class="textarea" rows="3" placeholder="Thông tin ngắn gọn"></textarea>
+          <textarea id="create-desc" class="textarea" rows="3" placeholder="Thông tin súc tích, kèm mã hồ sơ nếu có"></textarea>
 
           <label class="label">Hình ảnh (URL)</label>
           <input id="create-img" class="input" type="url" placeholder="https://..." />
@@ -195,11 +184,11 @@
           <div class="row-2">
             <div>
               <label class="label">Loại tài sản</label>
-              <input id="create-asset-type" class="input" type="text" placeholder="VD: BĐS, Xe, NFT..." />
+              <input id="create-asset-type" class="input" type="text" placeholder="VD: BĐS, Ô tô, Khác…" />
             </div>
             <div>
               <label class="label">Xã/Phường</label>
-              <input id="create-ward" class="input" type="text" placeholder="VD: Phường A, Xã B..." />
+              <input id="create-ward" class="input" type="text" placeholder="VD: Phường A, Xã B…" />
             </div>
           </div>
 
@@ -238,35 +227,34 @@
   <!-- ========= Toast ========= -->
   <div id="toast" class="toast" aria-live="polite" aria-atomic="true"></div>
 
-  <!-- ========= Vendor: ethers v5 ========= -->
+  <!-- Vendor -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-
-  <!-- ========= App ========= -->
   <script src="app.js"></script>
 
-  <!-- ========= Minimal bootstrap (không đụng Web3) ========= -->
+  <!-- Bootstrap (không đụng Web3) -->
   <script>
     (function () {
-      // Config & explorer links
       const cfg = JSON.parse(document.getElementById('app-config').textContent.trim());
       const EXP = cfg.EXPLORER.replace(/\/+$/,'');
       const AUCTION = cfg.CONTRACTS.AUCTION;
       const VIN     = cfg.CONTRACTS.VIN;
 
-      // Explorer anchors
-      document.getElementById('link-auction').href = EXP + '/address/' + AUCTION;
-      document.getElementById('link-vin').href     = EXP + '/token/'   + VIN;
-      document.getElementById('link-expl-auction').href = EXP + '/address/' + AUCTION;
-      document.getElementById('link-expl-vin').href     = EXP + '/token/'   + VIN;
+      // Set explorer links
+      const setHref = (id, url) => { const el = document.getElementById(id); if (el) el.href = url; };
+      setHref('link-auction',      EXP + '/address/' + AUCTION);
+      setHref('link-vin',          EXP + '/token/'   + VIN);
+      setHref('link-expl-auction', EXP + '/address/' + AUCTION);
+      setHref('link-expl-vin',     EXP + '/token/'   + VIN);
 
-      // Mirror links for mobile drawer
-      document.getElementById('m-link-auction').href = EXP + '/address/' + AUCTION;
-      document.getElementById('m-link-vin').href     = EXP + '/token/'   + VIN;
-
-      // Swap link (nên cập nhật URL thật)
-      if (cfg.LINKS && cfg.LINKS.SWAP) {
-        document.getElementById('link-swap').href = cfg.LINKS.SWAP;
-        document.getElementById('m-link-swap').href = cfg.LINKS.SWAP;
+      // Mirror to mobile drawer
+      ['m-link-auction','m-link-vin'].forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (el) el.href = i === 0 ? (EXP + '/address/' + AUCTION) : (EXP + '/token/' + VIN);
+      });
+      if (cfg.LINKS?.SWAP) {
+        setHref('link-swap', cfg.LINKS.SWAP);
+        const mSwap = document.getElementById('m-link-swap');
+        if (mSwap) mSwap.href = cfg.LINKS.SWAP;
       }
 
       // Drawer open/close
@@ -278,38 +266,40 @@
         drawer.setAttribute('aria-hidden', 'true');
       });
 
-      // Sync mobile & desktop buttons to same handlers (app.js sẽ gán)
-      ['connect','open-create','search','follow','clear'].forEach(x=>{
-        const d = document.getElementById(
-          x==='connect' ? 'btn-connect' :
-          x==='open-create' ? 'btn-open-create' :
-          x==='search' ? 'btn-search' :
-          x==='follow' ? 'btn-follow' : 'btn-clear'
-        );
-        const m = document.getElementById(
-          x==='connect' ? 'm-btn-connect' :
-          x==='open-create' ? 'm-btn-open-create' :
-          x==='search' ? 'm-btn-search' :
-          x==='follow' ? 'm-btn-follow' : 'm-btn-clear'
-        );
-        if (d && m) m.addEventListener('click', () => d.click());
+      // Desktop dropdowns
+      document.querySelectorAll('.menu-item.has-sub').forEach(item => {
+        const btn = item.querySelector('.menu-btn');
+        btn?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const expanded = btn.getAttribute('aria-expanded') === 'true';
+          document.querySelectorAll('.menu-item.has-sub .menu-btn[aria-expanded="true"]').forEach(b=>{
+            if (b !== btn) { b.setAttribute('aria-expanded','false'); b.parentElement.classList.remove('open'); }
+          });
+          btn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+          item.classList.toggle('open', !expanded);
+        });
+      });
+      document.addEventListener('click', () => {
+        document.querySelectorAll('.menu-item.has-sub').forEach(i => {
+          i.classList.remove('open');
+          const b = i.querySelector('.menu-btn'); if (b) b.setAttribute('aria-expanded','false');
+        });
       });
 
-      // Mobile input mirrors desktop input for app.js logic
+      // Mirror search desktop <-> mobile
       const si = document.getElementById('search-input');
       const sm = document.getElementById('m-search-input');
-      if (si && sm) {
-        sm.addEventListener('input', () => { si.value = sm.value; });
-        si.addEventListener('input', () => { sm.value = si.value; });
-      }
+      const sync = (from, to) => from && to && from.addEventListener('input', ()=>{ to.value = from.value; });
+      sync(si, sm); sync(sm, si);
 
-      // Close modal helpers
-      document.querySelectorAll('[data-close]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const sel = btn.getAttribute('data-close');
-          const m = document.querySelector(sel);
-          if (m) m.setAttribute('aria-hidden', 'true');
-        });
+      // Mirror main actions (app.js chỉ bind desktop ids)
+      const map = [
+        ['btn-connect','m-btn-connect'],
+        ['btn-search','m-btn-search']
+      ];
+      map.forEach(([d,m])=>{
+        const D=document.getElementById(d), M=document.getElementById(m);
+        if (D && M) M.addEventListener('click', ()=> D.click());
       });
     })();
   </script>
