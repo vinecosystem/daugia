@@ -1,9 +1,10 @@
 /* =========================================================
    daugia.vin — style.css (synced with latest index.html)
-   - Dark UI hiện đại, chuyên nghiệp, dễ dùng
-   - Nút bấm nổi rõ (gradient + shadow + hover/focus)
-   - Responsive đẹp trên mobile & desktop
-   - Footer dạng dock cố định ở đáy, không che nội dung
+   - Dark UI hiện đại, chuyên nghiệp, dễ đọc
+   - Menu & nút nổi bật (gradient + shadow + hover/focus)
+   - 1 ô tìm kiếm + 3 nút (Tìm / Theo dõi / Xóa)
+   - Danh sách thẻ, footer dạng dock cố định ở đáy
+   - Responsive mượt trên mobile & desktop
    ========================================================= */
 
 /* ---------- Theme ---------- */
@@ -12,31 +13,30 @@
   --bg-2: #0f1628;
   --surface: #111a2e;
   --card: #0e172a;
-  --muted: #96a0b5;
-  --text: #e5ecf7;
+  --muted: #9aa7c2;
+  --text: #e6edf7;
   --primary: #22c55e;
   --primary-2: #16a34a;
   --border: #1f2b46;
   --accent: #7dd3fc;
   --danger: #ef4444;
   --shadow: rgba(0,0,0,.45);
-  --dock-h: 68px; /* chiều cao dock footer */
+  --dock-h: 70px; /* chiều cao dock footer */
 }
-@media (max-width:640px){ :root{ --dock-h: 86px; } }
+@media (max-width: 640px){ :root{ --dock-h: 88px; } }
 
 /* ---------- Base ---------- */
 *{ box-sizing: border-box; }
-html,body{ height:100%; }
+html, body{ height:100%; }
 body{
   margin:0;
   color:var(--text);
   background: radial-gradient(1200px 600px at 10% -10%, #0a1529 0%, var(--bg) 36%, var(--bg) 100%);
-  font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif;
-  /* chừa chỗ cho dock để không bị che nội dung */
-  padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom,0px));
+  font:15px/1.55 system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, sans-serif;
+  /* chừa chỗ cho dock để không che nội dung */
+  padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom, 0px));
 }
 
-/* helpers */
 .hidden{ display:none !important; }
 .muted{ color:var(--muted); }
 .sep{ opacity:.55; margin:0 .5rem; }
@@ -58,7 +58,7 @@ a.btn{ text-decoration:none; }
   box-shadow:0 10px 26px -12px var(--shadow);
   font-weight:600; letter-spacing:.2px; white-space:nowrap;
 }
-.btn:hover{ transform:translateY(-1px); border-color:#2a3b5c; filter:brightness(1.02); }
+.btn:hover{ transform:translateY(-1px); border-color:#2a3b5c; filter:brightness(1.03); }
 .btn:active{ transform:translateY(0) scale(.99); }
 .btn:disabled{ opacity:.6; cursor:not-allowed; }
 
@@ -79,7 +79,7 @@ a.btn{ text-decoration:none; }
 
 /* ---------- Inputs ---------- */
 .field{ display:flex; flex-direction:column; gap:6px; width:100%; }
-.field>label{ font-size:13px; color:#b5c0d7; }
+.field>label{ font-size:13px; color:#b7c3db; }
 .field>input, .field>textarea, .field>select{
   width:100%;
   background:var(--surface); color:var(--text);
@@ -126,19 +126,19 @@ a.btn{ text-decoration:none; }
 /* ---------- Hero ---------- */
 .hero{ padding:22px 16px 8px; }
 .hero__content{ max-width:1080px; margin:0 auto; }
-.hero__content h2{ margin:0; font-size:22px; letter-spacing:.2px; }
+.hero__content h2{ margin:0; font-size:26px; letter-spacing:.2px; }
 
-/* ---------- Toolbar ---------- */
+/* ---------- Toolbar (search) ---------- */
 .toolbar{ padding:6px 16px 0; }
 .toolbar__row{
   max-width:1080px; margin:0 auto;
   display:flex; gap:10px; align-items:end; flex-wrap:wrap;
 }
 
-/* ---------- Status Row ---------- */
+/* ---------- Badge (nếu dùng ở thẻ) ---------- */
 .badge{
   padding:2px 8px; border-radius:999px; font-size:12px;
-  border:1px solid var(--border); background:#0b1322;
+  border:1px solid var(--border); background:#0b1322; color:#cfe4ff;
 }
 .badge.success{ border-color:rgba(34,197,94,.4); color:#a7f3d0; }
 .badge.warn{ border-color:rgba(245,158,11,.3); color:#fde68a; }
@@ -176,7 +176,7 @@ a.btn{ text-decoration:none; }
   position:fixed; inset:auto 0 0 0; z-index:40;
   background:rgba(12,18,32,.84); backdrop-filter:blur(10px);
   border-top:1px solid rgba(255,255,255,.06);
-  padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
 }
 .footer__row{
   max-width:1080px; margin:0 auto;
@@ -187,15 +187,15 @@ a.btn{ text-decoration:none; }
 .footer a{ color:var(--accent); }
 
 /* ---------- Responsive ---------- */
-@media (max-width:1024px){
+@media (max-width: 1024px){
   .brand h1{ font-size:17px; }
 }
-@media (max-width:860px){
+@media (max-width: 860px){
   .container{ grid-template-columns:1fr; }
   .nav__right{ gap:6px; }
 }
-@media (max-width:520px){
+@media (max-width: 520px){
   .brand h1{ font-size:16px; }
-  .hero__content h2{ font-size:20px; }
+  .hero__content h2{ font-size:22px; }
   .btn{ padding:11px 14px; border-radius:10px; }
 }
