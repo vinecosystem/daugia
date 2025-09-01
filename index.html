@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>daugia.vin — Đấu giá minh bạch trên blockchain</title>
+  <meta name="description" content="Nền tảng đấu giá on-chain trên Viction (VIC). Vận hành tự động bằng hợp đồng thông minh; minh bạch — công bằng — bất biến." />
+
+  <!-- Favicons (tùy chọn) -->
+  <link rel="icon" type="image/png" sizes="32x32" href="vin64.png" />
+  <link rel="icon" type="image/png" sizes="64x64" href="vin64.png" />
+  <link rel="apple-touch-icon" sizes="128x128" href="vin128.png" />
+  <link rel="shortcut icon" href="vin64.png" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Top Navigation -->
+  <header class="nav">
+    <div class="nav__left">
+      <img id="logo" src="vin128.png" alt="VIN" />
+      <div class="brand">
+        <h1>daugia.vin</h1>
+        <p class="tagline">Minh bạch & Công bằng trên blockchain</p>
+      </div>
+    </div>
+
+    <div class="nav__right">
+      <!-- Giá VIN (USD) -->
+      <div class="net-pill" id="vin-price-pill">
+        <span id="vin-price">đang tải…</span>
+      </div>
+
+      <!-- Menu chính (ẩn/hiện bằng app.js) -->
+      <a id="menu-guide" class="btn btn-ghost" href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" target="_blank" rel="noopener">Hướng dẫn</a>
+      <a id="menu-create" class="btn btn-outline hidden" href="#" title="Tạo cuộc đấu giá">Tạo cuộc đấu giá</a>
+      <button id="btn-register" class="btn btn-outline hidden" title="Đăng ký tổ chức — phí ~1 USD bằng VIN">Đăng ký</button>
+
+      <!-- Wallet -->
+      <div id="wallet-chip" class="wallet-chip hidden">
+        <span id="wallet-address">0x…</span>
+        <span class="sep">•</span><span id="bal-vic">VIC: -</span>
+        <span class="sep">•</span><span id="bal-vin">VIN: -</span>
+      </div>
+      <button id="btn-connect" class="btn btn-primary" title="Kết nối ví (Viction)">Kết nối ví</button>
+      <button id="btn-disconnect" class="btn btn-secondary hidden" title="Ngắt kết nối ví">Ngắt kết nối</button>
+    </div>
+  </header>
+
+  <!-- Slogan (mảnh, không chiếm chỗ) -->
+  <section class="mission-note" role="note">
+    <p>
+      <strong>Công bằng • Minh bạch • Tự động • Trên Blockchain</strong><br/>
+      Vận hành 100% bằng hợp đồng thông minh, không ai có thể can thiệp.<br/>
+      <em><a href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" class="mission-link" target="_blank" rel="noopener">Xem kỹ hướng dẫn sử dụng</a> trước khi tham gia.</em>
+    </p>
+  </section>
+
+  <!-- Search bar: 1 ô + 3 nút -->
+  <section class="toolbar">
+    <div class="toolbar__row" style="max-width:1080px; margin:0 auto; align-items:end; gap:10px;">
+      <div class="field" style="flex:1 1 560px; min-width:280px;">
+        <div style="display:flex; gap:6px;">
+          <input id="inp-organizer" type="text" placeholder="Tìm kiếm (theo địa chỉ ví người tạo cuộc đấu giá — 0x…)" />
+          <button id="btn-search" class="btn">Tìm</button>
+          <button id="btn-follow-add" class="btn btn-secondary">Theo dõi</button>
+          <button id="btn-follow-clear" class="btn btn-ghost" title="Xóa danh sách theo dõi">Xóa</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Danh sách cuộc đấu giá -->
+  <main class="container" id="auction-list"></main>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Footer dock -->
+  <footer class="footer">
+    <div class="footer__row">
+      <a href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noopener">Swap VIN/VIC</a>
+      <span class="sep">•</span>
+      <a href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" target="_blank" rel="noopener">Hướng dẫn</a>
+    </div>
+  </footer>
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
+
+  <!-- Giá VIN: VIC/USDT → 1 VIN = VIC * 100 -->
+  <script>
+    const BINANCE_API_URL = "https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT";
+    async function updateVinPrice() {
+      const el = document.getElementById("vin-price");
+      if (!el) return;
+      try {
+        const res = await fetch(BINANCE_API_URL, { cache: "no-store" });
+        const data = await res.json();
+        const vicPrice = parseFloat(data.price);
+        if (Number.isFinite(vicPrice) && vicPrice > 0) {
+          const vinPrice = vicPrice * 100;
+          el.textContent = `1 VIN = ${vinPrice.toFixed(2)} USD`;
+        } else {
+          el.textContent = "Price unavailable";
+        }
+      } catch {
+        el.textContent = "Price unavailable";
+      }
+    }
+    document.addEventListener("DOMContentLoaded", updateVinPrice);
+    setInterval(updateVinPrice, 60000);
+  </script>
+
+  <!-- App script -->
+  <script src="app.js"></script>
+</body>
+</html>
