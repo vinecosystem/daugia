@@ -103,21 +103,26 @@ Mỗi cuộc đấu giá hiển thị:
 
 ---
 
-## 4. Tìm kiếm
-- Nhập **địa chỉ ví của tổ chức** → hiển thị tất cả phiên do ví đó tạo.  
-- Danh sách kết quả: tiêu đề, ngày đấu giá, trạng thái (sắp, đang, kết thúc).
-
+## 4. Giao diện trang web khi người dùng chưa kết nối ví
+- Thanh điều hướng phía trên để ghim các thành phần cần thiết  
+- logo và câu slogan: Đấu giá minh bạch trên Blockchain
+- Giá vin hiện theo USD (kiểu hiện 1 VIN = 23.45 USD)
+- ô tìm kiếm và nút tìm bên cạnh: người dùng nhập thông tin cần tìm để tìm cuộc đấu giá mình quan tâm
+- nút kết nối ví
+- Màn hình chính là danh sách các cuộc đấu giá (nếu các cuộc đấu giá đã được tạo sẽ hiện)
+- Thanh điều hướng phía chân trang để các link: hợp đồng thông minh đấu giá, hướng dẫn, vin token; swap vin/vic
 ---
 
-## 5. Giỏ hàng
-- Người dùng có thể **thêm phiên** vào giỏ hàng để theo dõi.  
-- Giỏ chỉ hiển thị các phiên đã thêm.  
-- Muốn xem phiên khác → cần **xóa giỏ hàng**.
+## 5. giao diện trang web khi người dùng kết nối ví thanh công
+- Thêm các yếu tố sau so với giao diện chưa kết nối
+  - nút "đăng ký": nếu ví đó chưa đăng ký sẽ có nút đăng ký hiện ra; nếu ví đó đã đăng ký thì có nút "tạo cuộc đấu giá" nghĩa là kiểm tra ví đó chưa đăng ký thì nút đăng ký hiện ra họ đăng ký trả 1$ trả bằng vin thì có thông báo đăng ký thành công và khi đó có nút "tạo cuộc đấu giá" hiện ra.  
+-   hiện địa chỉ ví, số dư vin, vic
+- như vậy màn hình giao diện khi kết nối ví thành công sẽ có thêm thông tin ví, số dư vin, vic và nút kết nối thay bằng ngắt kết nối và nút "đăng ký" hiện ra; nếu ví đó đã đăngký thì nút "tạo cuộc đấu giá" sẽ hiện ra
 
 ---
 
 ## 6. Hành vi & thông báo
-- Mọi thao tác (đăng ký, tạo phiên, cập nhật whitelist, bỏ giá) → đều cần ký ví, trả gas VIC + phí 1 USD VIN.  
+- Mọi thao tác (đăng ký, tạo cuộc đấu giá, cập nhật ví của người tham ra đấu giá đã đặt cọc, bỏ giá) → đều cần ký ví, trả gas VIC + phí 1 USD VIN.  
 - **Luật bỏ giá:**  
   - Mức đặt giá ≥ (giá hiện tại + bước giá).  
 - **Thông báo gợi ý:**
@@ -144,3 +149,5 @@ Mỗi cuộc đấu giá hiển thị:
 - **Chi tiết phiên**: minh bạch thông tin, giá, ví đã cọc, lịch sử bid.  
 - **Tham gia**: chỉ ví đã cọc được bỏ giá.  
 - **Kết thúc**: công bố ví thắng + giá trúng, hoặc thất bại nếu không ai tham gia.  
+
+như vậy khi người dùng đã đăng ký thì sẽ có nút "tạo cuộc đấu giá" họ bấm nút này một mẫu chuẩn sẽ hiện ra họ khai báo xong bấm nút đăng gọi ký ví thì cuộc đấu giá sẽ hiện ra và ai cũng có thể xem và đọc được. dưới mỗi cuộc đấu giá sẽ có 2 nút là "bỏ giá" dành cho người đã đặt cọc và nút "cập nhật ví của người đã cọc" nút này dành cho người tạo cuộc đấu giá để cập nhật ví cho người đã đặt cọc. người dùng chỉ bấm được nút bỏ giá khi người tạo cuộc đấu giá cập nhật ví của họ lên.
