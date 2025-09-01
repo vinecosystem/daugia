@@ -1,0 +1,146 @@
+# 📑 Mô tả trang — daugia.vin
+
+## 1. Trang chủ
+- **Logo & tiêu đề:** `daugia.vin — Đấu giá minh bạch trên Blockchain`
+- **Nút chính:**
+  - 🔗 **Kết nối ví** (MetaMask, mạng VIC)
+  - 📝 **Đăng ký**:  
+    - Bất kỳ ai cũng có thể đăng ký.  
+    - Khi bấm: ký ví, trả gas VIC + phí **1 USD bằng VIN**.  
+    - Sau khi đăng ký: ví được quyền **tạo cuộc đấu giá**.
+
+---
+
+## 2. Tạo cuộc đấu giá
+Sau khi đăng ký, ví sẽ thấy nút **“Tạo cuộc đấu giá”**.  
+
+Khi bấm, hệ thống mở **mẫu chuẩn** để khai báo thông tin cuộc đấu giá:
+
+1. **Thông tin đơn vị tổ chức**
+   - Tên đơn vị (bắt buộc)  
+   - Địa chỉ (tùy chọn)
+   - Số điện thoại (tùy chọn)
+   - Email (tùy chọn)  
+   - Website (tùy chọn)  
+   - Mã số thuế / Giấy phép ĐKKD (tùy chọn)
+
+2. **Bên bán tài sản**
+   - Tên đơn vị (bắt buộc)  
+   - Địa chỉ (tùy chọn)
+   - Số điện thoại (tùy chọn)
+   - Email (tùy chọn)  
+   - Website (tùy chọn)  
+   - Mã số thuế / Giấy phép ĐKKD (tùy chọn)
+     
+3. **Mô tả tài sản**
+   - Tiêu đề (≤200 ký tự)  
+   - Mô tả chi tiết (tối đa 20.000 ký tự)  
+   - Địa điểm tài sản  
+   - Ảnh minh họa (IPFS URL/CID, tùy chọn)  
+   - Tài liệu pháp lý (IPFS URL/CID, tùy chọn)
+
+4. **Thời gian xem tài sản**: từ – đến (GMT+7)
+
+5. **Thời gian nộp tiền đặt cọc**: từ – đến (GMT+7)
+
+6. **Giá khởi điểm** (VND)
+
+7. **Bước giá tối thiểu** (VND)
+
+8. **Mức tiền đặt cọc** (VND)
+
+9. **Hạn cuối cập nhật ví đã đặt cọc** (datetime GMT+7)
+
+10. **Thông tin tài khoản nhận tiền đặt cọc**
+    - Tên chủ tài khoản  
+    - Số tài khoản ngân hàng  
+    - Tên ngân hàng  
+    - Nội dung chuyển khoản (mặc định: “Tên + địa chỉ ví VIC”)
+
+11. **Thời gian phiên đấu giá**: ngày giờ **bắt đầu – kết thúc** (GMT+7)
+
+➡️ Sau khi điền xong → bấm **Ký & Đăng**  
+- MetaMask mở xác nhận.  
+- Trả gas VIC + phí 1 USD VIN.  
+- Hệ thống ghi dữ liệu **on-chain** + lưu chi tiết **IPFS**.  
+- Cuộc đấu giá hiển thị công khai.
+
+---
+
+## 3. Sau khi tạo xong một cuộc đấu giá
+Mỗi cuộc đấu giá hiển thị:
+
+### Thông tin chung
+- Tiêu đề & mô tả tài sản  
+- Ảnh & tài liệu IPFS  
+- Thông tin tổ chức & bên bán  
+
+### Thời gian
+- Khung xem tài sản  
+- Khung nộp cọc  
+- Phiên đấu giá (start–end)  
+- Hạn cập nhật whitelist  
+- Đồng hồ đếm ngược  
+
+### Giá
+- Giá khởi điểm  
+- Bước giá  
+- Mức tiền cọc  
+- Giá hiện thời  
+- Giá trúng (sau khi kết thúc)  
+
+### Danh sách & trạng thái
+- Danh sách ví đã cọc (whitelist)  
+- Ví đang dẫn đầu  
+- Ví trúng cuộc (sau khi kết thúc)  
+- Lịch sử đặt giá (thời gian – ví – số tiền, log on-chain)  
+
+### Nút chức năng
+- **Người tham gia**:  
+  - “Bỏ giá” (chỉ hoạt động khi ví thuộc whitelist + phiên ACTIVE)
+- **Người tổ chức**:  
+  - “Cập nhật ví đã đặt cọc” (chỉ organizer, đến cutoff)
+
+---
+
+## 4. Tìm kiếm
+- Nhập **địa chỉ ví của tổ chức** → hiển thị tất cả phiên do ví đó tạo.  
+- Danh sách kết quả: tiêu đề, ngày đấu giá, trạng thái (sắp, đang, kết thúc).
+
+---
+
+## 5. Giỏ hàng
+- Người dùng có thể **thêm phiên** vào giỏ hàng để theo dõi.  
+- Giỏ chỉ hiển thị các phiên đã thêm.  
+- Muốn xem phiên khác → cần **xóa giỏ hàng**.
+
+---
+
+## 6. Hành vi & thông báo
+- Mọi thao tác (đăng ký, tạo phiên, cập nhật whitelist, bỏ giá) → đều cần ký ví, trả gas VIC + phí 1 USD VIN.  
+- **Luật bỏ giá:**  
+  - Mức đặt giá ≥ (giá hiện tại + bước giá).  
+- **Thông báo gợi ý:**
+  - ⏳ Trước giờ: `Phiên đấu giá chưa bắt đầu.`  
+  - ⏹ Sau giờ: `Cuộc đấu giá đã kết thúc.`  
+  - 🚫 Không whitelist: `Ví của bạn chưa được xác nhận đặt cọc.`  
+  - ⚠️ Sai giá: `Giá bạn đặt quá thấp. Tối thiểu: {minValidBid}.`  
+  - ❌ Không ai tham gia: `Đấu giá thất bại, không có người tham gia.`  
+  - ✅ Thành công: `Đặt giá thành công {bidAmount}. Bạn đang dẫn đầu.`
+
+---
+
+## 7. Minh bạch & tốc độ
+- Whitelist, bid, kết quả → **log on-chain công khai**.  
+- Không hạn chế spam / cooldown / anti-sniping.  
+- Ai xác nhận giao dịch **trước** thì dẫn đầu.  
+- UI mặc định gợi ý **Max gas speed** khi gửi bid.
+
+---
+
+## ✅ Tóm tắt
+- **Đăng ký**: ai cũng có thể, 1 USD VIN.  
+- **Tạo phiên**: điền mẫu chuẩn → ký & đăng → công bố on-chain.  
+- **Chi tiết phiên**: minh bạch thông tin, giá, ví đã cọc, lịch sử bid.  
+- **Tham gia**: chỉ ví đã cọc được bỏ giá.  
+- **Kết thúc**: công bố ví thắng + giá trúng, hoặc thất bại nếu không ai tham gia.  
