@@ -1,13 +1,12 @@
 /* =========================================================
-   daugia.vin — style.css (UI 2 trạng thái)
-   - Dark theme chuyên nghiệp, tương phản tốt
-   - Component hóa: nav, subnav, toolbar, wallet-panel, card, footer
-   - Mượt mà trên desktop & mobile
+   daugia.vin — style.css (UI tối giản, đồng bộ app.js/index)
+   - Dark theme hiện đại
+   - Layout gọn gàng cho nav, toolbar, wallet panel, card
+   - Responsive tốt cho mobile
    ========================================================= */
 
 /* ---------- Design Tokens ---------- */
 :root{
-  /* Palette */
   --bg: #0b0f18;
   --bg-card: #111827;
   --bg-soft: #1a2333;
@@ -27,282 +26,106 @@
   --danger-hover: #ef4444;
 
   --chip-bg: #1e293b;
-  --chip-muted: #2a3a52;
 
-  /* Layout */
   --radius: 14px;
   --radius-sm: 10px;
-  --shadow: 0 10px 30px rgba(0,0,0,.35);
-  --shadow-soft: 0 4px 14px rgba(0,0,0,.25);
+  --shadow: 0 8px 24px rgba(0,0,0,.35);
   --transition: all .18s ease;
-
-  /* Typography */
-  --fs-xxs: .75rem;
-  --fs-xs: .85rem;
-  --fs-sm: .95rem;
-  --fs-md: 1rem;
-  --fs-lg: 1.25rem;
-  --fs-xl: 1.6rem;
 }
 
 /* ---------- Reset & Base ---------- */
-*{ box-sizing: border-box; margin: 0; padding: 0; }
-html, body{ height: 100%; }
+*{ box-sizing:border-box; margin:0; padding:0; }
 body{
-  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';
-  background: var(--bg);
-  color: var(--text);
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;
+  background:var(--bg); color:var(--text); line-height:1.6;
+  -webkit-font-smoothing:antialiased;
 }
-a{ color: var(--text-soft); text-decoration: none; }
-a:hover{ color: var(--primary-hover); }
-
+a{ color:var(--text-soft); text-decoration:none; }
+a:hover{ color:var(--primary-hover); }
 img{ display:block; }
+.hidden{ display:none !important; }
 
-/* Utilities */
-.hidden{ display: none !important; }
-.small{ font-size: var(--fs-xs); }
-.muted{ color: var(--text-dim); }
-
-/* Container */
-.container{ max-width: 1180px; margin: 0 auto; padding: 20px; }
-
-/* ---------- Header / Nav ---------- */
+/* ---------- Header ---------- */
 .nav{
-  position: sticky; top: 0; z-index: 20;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 20px;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
-  backdrop-filter: saturate(120%) blur(6px);
+  display:flex; justify-content:space-between; align-items:center;
+  background:var(--bg-card); padding:12px 20px; border-bottom:1px solid var(--border);
 }
-.nav-left{ display: flex; align-items: center; gap: 12px; }
-#logo-main{ width: 64px; height: 64px; object-fit: contain; }
-.brand-title{ font-size: var(--fs-lg); font-weight: 800; letter-spacing: .2px; }
-.brand-sub{ font-size: var(--fs-xs); color: var(--text-dim); margin-top: 2px; }
-.nav-right{ display: flex; align-items: center; gap: 10px; }
+.nav-left{ display:flex; align-items:center; gap:12px; }
+#logo-main{ width:60px; height:60px; object-fit:contain; }
+.brand-title{ font-size:1.25rem; font-weight:700; }
+.brand-sub{ font-size:.9rem; color:var(--text-dim); }
+.nav-right{ display:flex; gap:10px; }
 
-/* ---------- Subnav (links ngay dưới tiêu đề) ---------- */
-.subnav{
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
-  padding: 8px 20px;
-}
-.subnav a{ margin-right: 16px; font-size: var(--fs-sm); color: var(--text-soft); }
-.subnav a:hover{ color: var(--primary-hover); }
-
-/* ---------- Toolbar (search + price + actions) ---------- */
+/* ---------- Toolbar ---------- */
 .toolbar{
-  display: grid; grid-template-columns: 1fr auto auto;
-  gap: 12px; align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-card);
+  display:grid; grid-template-columns:1fr auto auto;
+  gap:12px; align-items:center;
+  background:var(--bg-card); padding:12px 20px; border-bottom:1px solid var(--border);
 }
-.toolbar .search{
-  display: grid; grid-template-columns: 1fr auto; gap: 8px;
-}
-
-/* ---------- Chips ---------- */
+.search{ display:grid; grid-template-columns:1fr auto; gap:8px; }
 .chip{
-  background: var(--chip-bg);
-  color: var(--text);
-  border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  font-size: var(--fs-sm);
-  box-shadow: var(--shadow-soft);
+  background:var(--chip-bg); padding:6px 12px; border-radius:var(--radius-sm);
+  font-size:.9rem; font-weight:600; text-align:center;
 }
-.chip.muted{ background: var(--chip-muted); color: var(--text-dim); }
+.actions-auth{ display:flex; gap:8px; justify-content:flex-end; }
+
+/* ---------- Inputs ---------- */
+.input,textarea{
+  background:#0d1421; border:1px solid var(--divider);
+  border-radius:var(--radius-sm); padding:10px 12px;
+  color:var(--text); font-size:.95rem; outline:none;
+}
+.input:focus{ border-color:var(--primary); box-shadow:0 0 0 2px rgba(37,99,235,.3); }
 
 /* ---------- Buttons ---------- */
 .btn{
-  appearance: none;
-  border: 1px solid var(--divider);
-  background: var(--bg-soft);
-  color: var(--text);
-  padding: 10px 16px;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  transition: var(--transition);
+  border:1px solid var(--divider); border-radius:var(--radius-sm);
+  padding:10px 16px; font-size:.9rem; font-weight:600;
+  cursor:pointer; background:var(--bg-soft); color:var(--text);
+  transition:var(--transition);
 }
-.btn:hover{ transform: translateY(-1px); border-color: var(--primary-hover); }
-.btn:active{ transform: translateY(0); }
-
-.btn.primary{
-  background: var(--primary);
-  border-color: transparent;
-  color: #fff;
-}
-.btn.primary:hover{ background: var(--primary-hover); }
-.btn.primary:active{ background: var(--primary-press); }
-
-.btn.danger{
-  background: var(--danger);
-  border-color: transparent;
-  color: #fff;
-}
-.btn.danger:hover{ background: var(--danger-hover); }
-
-/* Ghost button */
-.btn.ghost{
-  background: transparent;
-  border: 1px solid var(--divider);
-  color: var(--text);
-}
-.btn.ghost:hover{ border-color: var(--primary-hover); color: var(--primary-hover); }
-
-/* ---------- Inputs ---------- */
-.input, textarea{
-  width: 100%;
-  background: #0d1421;
-  color: var(--text);
-  border: 1px solid var(--divider);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  font-size: var(--fs-sm);
-  outline: none;
-  transition: var(--transition);
-}
-.input:focus, textarea:focus{
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, .2);
-}
+.btn:hover{ border-color:var(--primary-hover); color:var(--primary-hover); }
+.btn.primary{ background:var(--primary); border:none; color:#fff; }
+.btn.primary:hover{ background:var(--primary-hover); }
+.btn.danger{ background:var(--danger); border:none; color:#fff; }
+.btn.danger:hover{ background:var(--danger-hover); }
+.btn.ghost{ background:transparent; border:1px solid var(--divider); }
 
 /* ---------- Wallet Panel ---------- */
-.wallet-panel{
-  display: none;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 20px;
-}
-.wallet-panel .grid{
-  display: grid; gap: 12px; align-items: center;
-  grid-template-columns: 1.1fr 1fr 1fr auto;
-}
-.wallet-panel .actions-auth{ display: flex; gap: 8px; justify-content: flex-end; }
+.wallet-panel{ background:var(--bg-card); border-bottom:1px solid var(--border); padding:12px 20px; }
+.wallet-panel .grid{ display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:10px; align-items:center; }
 
-/* ---------- Cards & Lists ---------- */
+/* ---------- Cards ---------- */
 .card{
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  margin-bottom: 20px;
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:20px;
 }
-.card-head{
-  padding: 16px 16px 12px;
-  border-bottom: 1px solid var(--border);
-}
-.card-head h3{ font-size: var(--fs-lg); font-weight: 700; }
-.card-head h4{ font-size: var(--fs-md); font-weight: 700; }
-.card-head .small{ font-size: var(--fs-xs); }
-
-.card-body{ padding: 16px; }
-.card-foot{
-  padding: 12px 16px;
-  border-top: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
-}
-
-/* Grid cho danh sách phiên */
-.grid-cards{
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
-}
-
-/* Auction actions */
-.auction-actions{
-  display: flex; gap: 10px; flex-wrap: wrap;
-  margin-top: 12px;
-}
+.card-head{ padding:16px; border-bottom:1px solid var(--border); }
+.card-head h4{ font-size:1.1rem; font-weight:700; }
+.card-body{ padding:16px; }
+.card-foot{ padding:12px 16px; border-top:1px solid var(--border); }
+.grid-cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
+.auction-actions{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
 
 /* ---------- Empty / Skeleton ---------- */
 .empty{
-  text-align: center;
-  color: var(--text-dim);
-  padding: 24px 8px;
-  border: 1px dashed var(--divider);
-  border-radius: var(--radius-sm);
+  text-align:center; padding:24px; border:1px dashed var(--divider);
+  border-radius:var(--radius-sm); color:var(--text-dim);
 }
-.skeleton{
-  position: relative;
-  overflow: hidden;
-  background: #0f172a;
-  color: var(--text-dim);
-  text-align: center;
-  padding: 24px 8px;
-  border-radius: var(--radius-sm);
-}
-.skeleton::after{
-  content:"";
-  position:absolute; inset:0;
-  background-image: linear-gradient(90deg, transparent, rgba(255,255,255,.05), transparent);
-  transform: translateX(-100%);
-  animation: shimmer 1.2s infinite;
-}
-@keyframes shimmer{
-  100%{ transform: translateX(100%); }
-}
+.skeleton{ background:#0f172a; padding:24px; text-align:center; color:var(--text-dim); border-radius:var(--radius-sm); }
 
 /* ---------- Footer ---------- */
-.footer{
-  background: var(--bg-card);
-  border-top: 1px solid var(--border);
-  padding: 24px 20px;
-  margin-top: 24px;
-}
-.footer-inner{
-  display: flex; flex-wrap: wrap; gap: 20px;
-  justify-content: space-between;
-}
-.footer-col{ flex: 1 1 260px; }
-.footer-col h4{ font-size: var(--fs-sm); margin-bottom: 10px; }
-.footer-col .links{ list-style: none; }
-.footer-col .links li{ margin-bottom: 6px; }
-.footer-copy{ text-align: center; margin-top: 18px; font-size: var(--fs-xxs); color: var(--text-dim); }
-
-/* ---------- Typography helpers ---------- */
-h1,h2,h3,h4{ letter-spacing: .2px; }
-code{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; background: #0d1421; padding: 2px 6px; border-radius: 6px; border:1px solid var(--divider); }
+.footer{ background:var(--bg-card); border-top:1px solid var(--border); padding:20px; }
+.footer-inner{ display:flex; flex-wrap:wrap; gap:20px; }
+.footer-col h4{ font-size:.95rem; margin-bottom:8px; }
+.footer-col ul{ list-style:none; }
+.footer-col li{ margin-bottom:6px; }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 1024px){
-  .container{ padding: 16px; }
-  .grid-cards{ grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+@media (max-width:768px){
+  .toolbar{ grid-template-columns:1fr; }
+  .wallet-panel .grid{ grid-template-columns:1fr; }
+  .grid-cards{ grid-template-columns:1fr; }
+  #logo-main{ width:50px; height:50px; }
+  .brand-title{ font-size:1.1rem; }
 }
-
-@media (max-width: 768px){
-  .nav{ flex-wrap: wrap; gap: 10px; }
-  #logo-main{ width: 56px; height: 56px; }
-  .brand-title{ font-size: 1.1rem; }
-  .toolbar{ grid-template-columns: 1fr; }
-  .wallet-panel .grid{ grid-template-columns: 1fr; }
-  .grid-cards{ grid-template-columns: 1fr; }
-}
-
-/* ---------- Fine-tune spacing ---------- */
-.card + .card{ margin-top: 16px; }
-.card-body > * + *{ margin-top: 10px; }
-.footer-col p, .footer-col li{ color: var(--text-soft); }
-
-/* ---------- Focus visible (keyboard a11y) ---------- */
-:focus-visible{
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-/* ---------- Tooltip (title) smoothness ---------- */
-[title]{
-  cursor: help;
-}
-
-/* ---------- Helper classes used by app.js templates ---------- */
-.auc-title{ font-weight: 800; font-size: var(--fs-md); }
-.auc-meta > div + div{ margin-top: 6px; }
-.auc-detail{ margin-top: 8px; }
