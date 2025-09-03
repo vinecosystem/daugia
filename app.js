@@ -1,14 +1,15 @@
 /* =============================================================
-   daugia.vin — app.js (v5: Pricing độc lập với index.html)
-   - Kết nối ví (MetaMask, chainId 88 - Viction)
-   - Hiển thị: địa chỉ ví, số dư VIC & VIN
-   - Kiểm tra đăng ký -> hiện Đăng ký / Tạo cuộc đấu giá
-   - THU PHÍ 1 USD BẰNG VIN: app.js tự fetch giá (VIC/USDT × 100)
-   - Gas “nhanh”: gasLimit +50%, fee ×3; fallback 100 gwei
-   - Ô “Mô tả chi tiết” 20.000 ký tự + nút xuất .txt
+   daugia.vin — app.js (sync with new index.html: single CTA)
+   - Stable wallet connect (MetaMask, chainId 88)
+   - Show wallet addr (short), VIC & VIN balances
+   - Registered? => show "Tạo cuộc đấu giá" (single CTA on toolbar)
+   - Platform fee: 1 USD in VIN for Register/Create/Whitelist/Bid
+   - Pricing for fees is INDEPENDENT from index.html (VICUSDT ×100)
+   - Fast gas: +50% gasLimit, ×3 fees, fallback 100 gwei
+   - Long description 20,000 chars (keeps newlines) + export .txt
    ============================================================= */
 
-/** ================= Cấu hình ================= **/
+/** ================= Config ================= **/
 const CFG = window.DGV_CONFIG || {
   CHAIN_ID_HEX: "0x58",
   RPC_URL: "https://rpc.viction.xyz",
@@ -17,7 +18,7 @@ const CFG = window.DGV_CONFIG || {
   VIN_ADDR: "0x941F63807401efCE8afe3C9d88d368bAA287Fac4"
 };
 
-// Ưu tiên ABI từ file JSON; fallback ABI tối thiểu
+// Prefer full ABI from JSON; fallback to minimal
 let ABIAuction = null;
 const ABI_FALLBACK = [
   // Views
@@ -44,23 +45,23 @@ const ABI_ERC20 = [
   "function approve(address,uint256) returns (bool)"
 ];
 
-/** ================= Biến trạng thái ================= **/
+/** ================= State ================= **/
 let readonlyProvider, provider, signer, userAddr;
 let auction, vin;
 let vinDecimals = 18, vinSymbol = "VIN";
 
-// Giá phục vụ TÍNH PHÍ (độc lập UI)
-let lastVinUsd = NaN;     // USD per 1 VIN
+// Pricing for FEES ONLY (independent of index.html UI)
+let lastVinUsd = NaN;     // USD per VIN
 let lastPriceUpdatedAt = 0;
 
-/** ================= Khởi tạo ================= **/
+/** ================= Boot ================= **/
 bootstrap();
 
 async function bootstrap() {
   readonlyProvider = new ethers.providers.JsonRpcProvider(CFG.RPC_URL);
   provider = window.ethereum ? new ethers.providers.Web3Provider(window.ethereum) : readonlyProvider;
 
-  // Tải ABI nếu có
+  // Load ABI JSON if present
   try {
     const res = await fetch("DauGia_ABI.json", { cache: "no-store" });
     if (res.ok) ABIAuction = await res.json();
@@ -69,25 +70,25 @@ async function bootstrap() {
 
   auction = new ethers.Contract(CFG.AUCTION_ADDR, ABIAuction, readonlyProvider);
 
-  // TỰ fetch giá cho app.js (không đụng UI)
+  // Internal price loop (independent of UI)
   await refreshVinPriceForApp();
-  setInterval(refreshVinPriceForApp, 60000); // 60s một lần
+  setInterval(refreshVinPriceForApp, 60000);
 
-  // Event từ index.html
+  // Wire UI events
   wireUIEvents();
   window.addEventListener("wallet-state", handleWalletStateUI);
 
-  // Danh sách phiên cho khách
+  // Render as guest
   await renderAllAuctions();
 
-  // Tự nối lại nếu đã cấp quyền
+  // Auto connect if already authorized
   if (window.ethereum) {
     const accs = await provider.listAccounts().catch(()=>[]);
     if (accs && accs.length) await connectWallet().catch(()=>{});
   }
 }
 
-/** ================= Sự kiện từ index.html ================= **/
+/** ================= Events from index.html ================= **/
 function wireUIEvents() {
   window.addEventListener("do-connect", connectWallet);
   window.addEventListener("do-disconnect", disconnectWallet);
@@ -97,33 +98,27 @@ function wireUIEvents() {
   window.addEventListener("open-guide", openGuide);
 }
 
-/** ================= Giá VIN/USD (chỉ dùng nội bộ app.js) ================= **/
+/** ================= Pricing for fees (independent) ================= **/
 async function refreshVinPriceForApp() {
   try {
     const r = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT", { cache: "no-store" });
     const data = await r.json();
     const vicUsd = parseFloat(data?.price);
-    if (!isFinite(vicUsd)) throw new Error("No VIC/USDT");
-
-    lastVinUsd = vicUsd * 100;  // VIN = VIC * 100
+    if (!isFinite(vicUsd)) throw new Error("No VIC/USDT price");
+    lastVinUsd = vicUsd * 100; // VIN = VIC * 100
     lastPriceUpdatedAt = Date.now();
   } catch (e) {
     console.warn("refreshVinPriceForApp:", e?.message || e);
-    // giữ nguyên giá cũ nếu có
   }
 }
-
 async function ensureVinPrice() {
-  // Nếu quá 2 phút hoặc chưa có, fetch mới
   if (!(lastVinUsd > 0) || (Date.now() - lastPriceUpdatedAt > 120000)) {
     await refreshVinPriceForApp();
   }
-  if (!(lastVinUsd > 0)) {
-    throw new Error("Không lấy được giá VIN/USD để tính phí. Vui lòng thử lại.");
-  }
+  if (!(lastVinUsd > 0)) throw new Error("Không lấy được giá VIN/USD để tính phí. Vui lòng thử lại.");
 }
 
-/** ================= Kết nối / Ngắt ví ================= **/
+/** ================= Wallet connect / disconnect ================= **/
 async function connectWallet() {
   if (!window.ethereum) return alert("Vui lòng cài MetaMask để kết nối ví.");
 
@@ -141,7 +136,7 @@ async function connectWallet() {
       await window.ethereum.request({
         method: "wallet_addEthereumChain",
         params: [{
-          chainId: CFG.CHAIN_ID_HEX,
+          chainId: CFG.CAIN_ID_HEX || CFG.CHAIN_ID_HEX,
           chainName: "Viction",
           rpcUrls: [CFG.RPC_URL],
           nativeCurrency: { name: "VIC", symbol: "VIC", decimals: 18 },
@@ -157,7 +152,6 @@ async function connectWallet() {
   userAddr = await signer.getAddress();
   auction = auction.connect(signer);
 
-  // VIN token on-chain (ưu tiên), fallback CFG
   try {
     const vinAddr = await auction.vinToken();
     vin = new ethers.Contract(vinAddr, ABI_ERC20, signer);
@@ -187,7 +181,7 @@ async function disconnectWallet() {
   await renderAllAuctions();
 }
 
-/** ================= Wallet panel + nút hành động ================= **/
+/** ================= Wallet panel + CTA logic ================= **/
 async function refreshWalletPanel() {
   if (!signer || !userAddr) {
     dispatchWalletState({ connected: false, registered: false });
@@ -220,10 +214,12 @@ function handleWalletStateUI(ev) {
   const linkVicScan = document.getElementById("linkVicScan");
   const vicBalance = document.getElementById("vicBalance");
   const vinBalance = document.getElementById("vinBalance");
-  const btnRegister = document.getElementById("btnRegister");
-  const btnCreate1 = document.getElementById("btnCreateAuction");
-  const btnCreate2 = document.getElementById("btnCreateAuction2");
 
+  // Single CTA on toolbar
+  const btnRegister = document.getElementById("btnRegister");
+  const btnCreate1 = document.getElementById("btnCreateAuction"); // ONLY CTA
+
+  // Connection toggle
   if (s.connected) {
     btnConnect?.classList.add("hidden");
     btnDisconnect?.classList.remove("hidden");
@@ -234,25 +230,24 @@ function handleWalletStateUI(ev) {
     walletPanel?.style && (walletPanel.style.display = "none");
   }
 
+  // Wallet info
   if (s.accountShort) accShort.textContent = s.accountShort;
   if (s.accountExplorer) linkVicScan.href = s.accountExplorer;
   if (s.vicBalance != null) vicBalance.textContent = s.vicBalance;
   if (s.vinBalance != null) vinBalance.textContent = s.vinBalance;
 
+  // CTA logic
   if (s.connected) {
     if (s.registered) {
       btnRegister?.classList.add("hidden");
       btnCreate1?.classList.remove("hidden");
-      btnCreate2?.classList.remove("hidden");
     } else {
       btnRegister?.classList.remove("hidden");
       btnCreate1?.classList.add("hidden");
-      btnCreate2?.classList.add("hidden");
     }
   } else {
     btnRegister?.classList.add("hidden");
     btnCreate1?.classList.add("hidden");
-    btnCreate2?.classList.add("hidden");
   }
 }
 
@@ -260,14 +255,11 @@ function dispatchWalletState(detail) {
   window.dispatchEvent(new CustomEvent("wallet-state", { detail }));
 }
 
-/** ================= Phí 1 USD bằng VIN (độc lập UI) + gas nhanh ================= **/
+/** ================= Platform fee (1 USD VIN) + fast gas ================= **/
 async function getRequiredPlatformFeeWei() {
-  await ensureVinPrice(); // Tự fetch nếu chưa có
-
-  // 1 USD / (USD per VIN) = số VIN cần
-  const vinNeed = 1 / lastVinUsd;
+  await ensureVinPrice(); // fetch if missing/stale
+  const vinNeed = 1 / lastVinUsd; // 1 USD / (USD per VIN)
   const vinNeedWei = ethers.utils.parseUnits(vinNeed.toString(), vinDecimals);
-
   let feeOnChain = ethers.constants.Zero;
   try { feeOnChain = await auction.platformFeeVIN(); } catch {}
   return feeOnChain.gt(vinNeedWei) ? feeOnChain : vinNeedWei;
@@ -303,7 +295,7 @@ async function sendFast(txReq) {
   return await tx.wait();
 }
 
-/** ================= Đăng ký (thu 1 USD VIN) ================= **/
+/** ================= Register (charge 1 USD in VIN) ================= **/
 async function onRegisterOneUsd() {
   try {
     await ensureConnected();
@@ -313,18 +305,19 @@ async function onRegisterOneUsd() {
     await sendFast(txReq);
 
     alert("Đăng ký thành công!");
-    await refreshWalletPanel();
+    await refreshWalletPanel(); // CTA changes to "Tạo cuộc đấu giá"
   } catch (e) {
     console.error(e);
     alert(e?.message || "Đăng ký thất bại.");
   }
 }
 
-/** ================= Tạo phiên (thu 1 USD VIN) ================= **/
+/** ================= Create auction (charge 1 USD in VIN) ================= **/
 function openCreateModal() {
   ensureConnected().then(async () => {
     const registered = await auction.registeredOrganizer(userAddr).catch(()=>false);
     if (!registered) return alert("Bạn chưa đăng ký.");
+
     const m = modal(`
       <h3>Tạo cuộc đấu giá</h3>
       <div class="grid2">
@@ -357,7 +350,8 @@ function openCreateModal() {
         <button class="btn primary" id="c_ok">Ký & Đăng</button>
       </div>
     `);
-    // Xuất file txt để pin IPFS
+
+    // Export description as .txt for IPFS pin
     m.querySelector("#c_desc_save").onclick = () => {
       const txt = m.querySelector("#c_desc").value || "";
       const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
@@ -367,6 +361,7 @@ function openCreateModal() {
       a.click();
       URL.revokeObjectURL(a.href);
     };
+
     m.querySelector("#c_cancel").onclick = () => m.remove();
     m.querySelector("#c_ok").onclick = async () => {
       try {
@@ -402,7 +397,7 @@ function openCreateModal() {
   });
 }
 
-/** ================= Cập nhật whitelist (thu 1 USD VIN) ================= **/
+/** ================= Update whitelist (charge 1 USD VIN) ================= **/
 function openUpdateWhitelistModal(auctionId) {
   const m = modal(`
     <h3>Cập nhật ví đã đặt cọc (#${auctionId})</h3>
@@ -439,7 +434,7 @@ function openUpdateWhitelistModal(auctionId) {
   };
 }
 
-/** ================= Bỏ giá (thu 1 USD VIN) ================= **/
+/** ================= Place bid (charge 1 USD VIN) ================= **/
 function openBidModal(auctionId, currentPriceVND, minIncrementVND) {
   const minNext = ethers.BigNumber.from(currentPriceVND).add(minIncrementVND);
   const m = modal(`
@@ -471,7 +466,7 @@ function openBidModal(auctionId, currentPriceVND, minIncrementVND) {
   };
 }
 
-/** ================= Tìm kiếm & hiển thị ================= **/
+/** ================= Search & render ================= **/
 async function doSearch() {
   const q = (document.getElementById("searchQuery").value || "").trim();
   if (!q) { await renderAllAuctions(); return; }
@@ -480,12 +475,14 @@ async function doSearch() {
   wrap.innerHTML = `<div class="skeleton">Đang tìm…</div>`;
 
   try {
+    // by numeric ID
     if (/^\d+$/.test(q)) {
       const card = await renderOneAuctionCard(Number(q));
       wrap.innerHTML = "";
       if (card) wrap.appendChild(card); else wrap.innerHTML = `<div class="empty">Không tìm thấy #${q}.</div>`;
       return;
     }
+    // by organizer address
     if (ethers.utils.isAddress(q)) {
       const ids = await auction.getOrganizerAuctions(q);
       wrap.innerHTML = "";
@@ -496,6 +493,7 @@ async function doSearch() {
       }
       return;
     }
+    // keyword: naive match in CID
     const total = (await auction.totalAuctions()).toNumber();
     const found = [];
     for (let id = total; id >= 1; id--) {
@@ -571,6 +569,7 @@ async function renderOneAuctionCard(id) {
       ${auctionDetailCID ? `<div><strong>CID:</strong> <a href="https://ipfs.io/ipfs/${auctionDetailCID}" target="_blank" rel="noreferrer">${auctionDetailCID}</a></div>` : ""}
     `;
 
+    // Actions
     const btnWl = node.querySelector(".btn-update-whitelist");
     const btnBid = node.querySelector(".btn-bid");
     btnWl.dataset.auctionId = String(id);
@@ -593,7 +592,7 @@ async function renderOneAuctionCard(id) {
   }
 }
 
-/** ================= Hướng dẫn ================= **/
+/** ================= Guide ================= **/
 async function openGuide() {
   try {
     const r = await fetch("mota-daugia.md", { cache: "no-store" });
@@ -611,7 +610,7 @@ async function openGuide() {
   }
 }
 
-/** ================= Tiện ích chung ================= **/
+/** ================= Utils ================= **/
 async function ensureConnected(){ if (!signer || !userAddr) await connectWallet(); }
 
 function modal(innerHTML){
