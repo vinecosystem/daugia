@@ -1,16 +1,14 @@
 /* =============================================================
-   daugia.vin — app.js (auction-ready with standard create form)
-   - Stable wallet connect (MetaMask, chainId 88 – Viction)
-   - Show addr (short), VIC & VIN balances
-   - Register → single CTA on toolbar ("Tạo cuộc đấu giá")
+   daugia.vin — app.js (vertical create form, numbered 1..11)
+   - Wallet connect (MetaMask, chainId 88 – Viction)
+   - Show addr short, VIC & VIN balances
+   - Register → single CTA ("Tạo cuộc đấu giá")
    - All actions charge 1 USD in VIN (pricing independent from UI)
-   - Create form: 10 sections (organizer, seller, times, bank, prices…)
-     + Auto-generate Markdown description from form
-     + Export .txt to pin IPFS → paste CID to create
+   - Create form: 11 mục dọc, đánh số rõ ràng (không dùng grid)
    - Each auction card:
-     + "Tham gia": focus view to this auction (with "Quay lại danh sách")
-     + Organizer: "Cập nhật ví đã cọc" (before cutoff)
-     + Whitelisted: "Bỏ giá" (only within auction time window)
+     + "Tham gia": focus 1 phiên + "Quay lại danh sách"
+     + Organizer: "Cập nhật ví đã cọc" (trước cutoff)
+     + Whitelisted: "Bỏ giá" (chỉ trong time window)
    ============================================================= */
 
 /** ================= Config ================= **/
@@ -143,7 +141,7 @@ async function connectWallet() {
       await window.ethereum.request({
         method: "wallet_addEthereumChain",
         params: [{
-          chainId: CFG.CHAIN_ID_HEX,
+          chainId: CFG.CAIN_ID_HEX || CFG.CHAIN_ID_HEX,
           chainName: "Viction",
           rpcUrls: [CFG.RPC_URL],
           nativeCurrency: { name: "VIC", symbol: "VIC", decimals: 18 },
@@ -326,75 +324,97 @@ function openCreateModal() {
     const registered = await auction.registeredOrganizer(userAddr).catch(()=>false);
     if (!registered) return alert("Bạn chưa đăng ký.");
 
+    // *** Modal vertical form: 11 mục, đánh số rõ ràng, mỗi hàng 1 input ***
     const m = modal(`
-      <h3>Tạo cuộc đấu giá</h3>
+      <h3 style="margin-bottom:8px">Tạo cuộc đấu giá</h3>
 
       <!-- 1) Đơn vị tổ chức -->
       <div class="card">
-        <div class="card-head"><h4>1) Thông tin đơn vị tổ chức đấu giá</h4></div>
-        <div class="card-body grid2">
-          <div class="row"><label>Tên đơn vị (bắt buộc)</label><input id="org_name" class="input" placeholder="Công ty Đấu giá ABC *"></div>
-          <div class="row"><label>Địa chỉ (tuỳ chọn)</label><input id="org_addr" class="input" placeholder="Số, đường, phường/xã, quận/huyện, tỉnh/thành"></div>
-          <div class="row"><label>Số điện thoại (tuỳ chọn)</label><input id="org_phone" class="input" placeholder="+84…"></div>
-          <div class="row"><label>Email (tuỳ chọn)</label><input id="org_email" class="input" placeholder="email@domain.com"></div>
-          <div class="row"><label>Website (tuỳ chọn)</label><input id="org_web" class="input" placeholder="https://…"></div>
-          <div class="row"><label>Mã số thuế / GPKD (tuỳ chọn)</label><input id="org_tax" class="input" placeholder="0101xxxxxxx"></div>
+        <div class="card-head"><h4>1. Thông tin đơn vị tổ chức đấu giá</h4></div>
+        <div class="card-body">
+          <div class="row"><label for="org_name">Tên đơn vị (bắt buộc)</label><input id="org_name" class="input" placeholder="Công ty Đấu giá ABC *"></div>
+          <div class="row"><label for="org_addr">Địa chỉ (tuỳ chọn)</label><input id="org_addr" class="input" placeholder="Số, đường, phường/xã, quận/huyện, tỉnh/thành"></div>
+          <div class="row"><label for="org_phone">Số điện thoại (tuỳ chọn)</label><input id="org_phone" class="input" placeholder="+84…"></div>
+          <div class="row"><label for="org_email">Email (tuỳ chọn)</label><input id="org_email" class="input" placeholder="email@domain.com"></div>
+          <div class="row"><label for="org_web">Website (tuỳ chọn)</label><input id="org_web" class="input" placeholder="https://…"></div>
+          <div class="row"><label for="org_tax">Mã số thuế / GPKD (tuỳ chọn)</label><input id="org_tax" class="input" placeholder="0101xxxxxxx"></div>
         </div>
       </div>
 
       <!-- 2) Bên bán -->
       <div class="card">
-        <div class="card-head"><h4>2) Thông tin bên bán tài sản</h4></div>
-        <div class="card-body grid2">
-          <div class="row"><label>Tên đơn vị (bắt buộc)</label><input id="sell_name" class="input" placeholder="Công ty/Bên bán *"></div>
-          <div class="row"><label>Địa chỉ (tuỳ chọn)</label><input id="sell_addr" class="input"></div>
-          <div class="row"><label>Số điện thoại (tuỳ chọn)</label><input id="sell_phone" class="input"></div>
-          <div class="row"><label>Email (tuỳ chọn)</label><input id="sell_email" class="input"></div>
-          <div class="row"><label>Website (tuỳ chọn)</label><input id="sell_web" class="input"></div>
-          <div class="row"><label>Mã số thuế / GPKD (tuỳ chọn)</label><input id="sell_tax" class="input"></div>
+        <div class="card-head"><h4>2. Thông tin bên bán tài sản</h4></div>
+        <div class="card-body">
+          <div class="row"><label for="sell_name">Tên đơn vị (bắt buộc)</label><input id="sell_name" class="input" placeholder="Công ty/Bên bán *"></div>
+          <div class="row"><label for="sell_addr">Địa chỉ (tuỳ chọn)</label><input id="sell_addr" class="input"></div>
+          <div class="row"><label for="sell_phone">Số điện thoại (tuỳ chọn)</label><input id="sell_phone" class="input"></div>
+          <div class="row"><label for="sell_email">Email (tuỳ chọn)</label><input id="sell_email" class="input"></div>
+          <div class="row"><label for="sell_web">Website (tuỳ chọn)</label><input id="sell_web" class="input"></div>
+          <div class="row"><label for="sell_tax">Mã số thuế / GPKD (tuỳ chọn)</label><input id="sell_tax" class="input"></div>
         </div>
       </div>
 
-      <!-- 3-7) Mốc thời gian -->
+      <!-- 3) Xem tài sản -->
       <div class="card">
-        <div class="card-head"><h4>3-7) Thời gian</h4></div>
-        <div class="card-body grid2">
-          <div class="row"><label>3) Thời gian xem tài sản - Bắt đầu</label><input id="c_sv" type="datetime-local" class="input"></div>
-          <div class="row"><label>3) Thời gian xem tài sản - Kết thúc</label><input id="c_ev" type="datetime-local" class="input"></div>
-          <div class="row"><label>4) Thời gian nộp tiền đặt cọc - Bắt đầu</label><input id="c_ds" type="datetime-local" class="input"></div>
-          <div class="row"><label>5) Hạn cập nhật ví đã đặt cọc</label><input id="c_dc" type="datetime-local" class="input"></div>
-          <div class="row"><label>7) Thời gian đấu giá - Bắt đầu</label><input id="c_as" type="datetime-local" class="input"></div>
-          <div class="row"><label>7) Thời gian đấu giá - Kết thúc</label><input id="c_ae" type="datetime-local" class="input"></div>
+        <div class="card-head"><h4>3. Thời gian xem tài sản</h4></div>
+        <div class="card-body">
+          <div class="row"><label for="c_sv">Bắt đầu</label><input id="c_sv" type="datetime-local" class="input"></div>
+          <div class="row"><label for="c_ev">Kết thúc</label><input id="c_ev" type="datetime-local" class="input"></div>
         </div>
       </div>
 
-      <!-- 6) Thông tin nhận tiền đặt cọc -->
+      <!-- 4) Nộp cọc -->
       <div class="card">
-        <div class="card-head"><h4>6) Thông tin nhận tiền đặt cọc (ngoài chuỗi)</h4></div>
-        <div class="card-body grid2">
-          <div class="row"><label>Tên chủ tài khoản</label><input id="dep_owner" class="input" placeholder="Nguyễn Văn A"></div>
-          <div class="row"><label>Số tài khoản ngân hàng</label><input id="dep_acc" class="input" placeholder="xxxxxxxxxx"></div>
-          <div class="row"><label>Tên ngân hàng</label><input id="dep_bank" class="input" placeholder="VCB/TCB/…"></div>
-          <div class="row"><label>Nội dung chuyển khoản</label><input id="dep_memo" class="input" placeholder='Mặc định: "Tên + địa chỉ ví VIC"'></div>
+        <div class="card-head"><h4>4. Thời gian nộp tiền đặt cọc</h4></div>
+        <div class="card-body">
+          <div class="row"><label for="c_ds">Bắt đầu</label><input id="c_ds" type="datetime-local" class="input"></div>
+        </div>
+      </div>
+
+      <!-- 5) Hạn cập nhật ví -->
+      <div class="card">
+        <div class="card-head"><h4>5. Hạn cập nhật ví đã đặt cọc</h4></div>
+        <div class="card-body">
+          <div class="row"><label for="c_dc">Hạn cuối</label><input id="c_dc" type="datetime-local" class="input"></div>
+        </div>
+      </div>
+
+      <!-- 6) Tài khoản nhận cọc -->
+      <div class="card">
+        <div class="card-head"><h4>6. Thông tin nhận tiền đặt cọc (ngoài chuỗi)</h4></div>
+        <div class="card-body">
+          <div class="row"><label for="dep_owner">Tên chủ tài khoản</label><input id="dep_owner" class="input" placeholder="Nguyễn Văn A"></div>
+          <div class="row"><label for="dep_acc">Số tài khoản ngân hàng</label><input id="dep_acc" class="input" placeholder="xxxxxxxxxx"></div>
+          <div class="row"><label for="dep_bank">Tên ngân hàng</label><input id="dep_bank" class="input" placeholder="VCB/TCB/…"></div>
+          <div class="row"><label for="dep_memo">Nội dung chuyển khoản</label><input id="dep_memo" class="input" placeholder='Mặc định: "Tên + địa chỉ ví VIC"'></div>
+        </div>
+      </div>
+
+      <!-- 7) Đấu giá -->
+      <div class="card">
+        <div class="card-head"><h4>7. Thời gian đấu giá</h4></div>
+        <div class="card-body">
+          <div class="row"><label for="c_as">Bắt đầu</label><input id="c_as" type="datetime-local" class="input"></div>
+          <div class="row"><label for="c_ae">Kết thúc</label><input id="c_ae" type="datetime-local" class="input"></div>
         </div>
       </div>
 
       <!-- 8-10) Giá & cọc -->
       <div class="card">
-        <div class="card-head"><h4>8-10) Giá & cọc (VND)</h4></div>
-        <div class="card-body grid3">
-          <div class="row"><label>8) Giá khởi điểm (VND)</label><input id="c_sp" type="number" min="0" step="1" class="input" placeholder="vd: 100000000"></div>
-          <div class="row"><label>9) Bước giá (VND)</label><input id="c_step" type="number" min="1" step="1" class="input" placeholder="vd: 1000000"></div>
-          <div class="row"><label>10) Mức tiền đặt cọc (VND)</label><input id="c_dep" type="number" min="0" step="1" class="input" placeholder="vd: 10000000"></div>
+        <div class="card-head"><h4>8–10. Giá & cọc (VND)</h4></div>
+        <div class="card-body">
+          <div class="row"><label for="c_sp">8) Giá khởi điểm (VND)</label><input id="c_sp" type="number" min="0" step="1" class="input" placeholder="vd: 5000000000"></div>
+          <div class="row"><label for="c_step">9) Bước giá (VND)</label><input id="c_step" type="number" min="1" step="1" class="input" placeholder="vd: 100000000"></div>
+          <div class="row"><label for="c_dep">10) Mức tiền đặt cọc (VND)</label><input id="c_dep" type="number" min="0" step="1" class="input" placeholder="vd: 500000000"></div>
         </div>
       </div>
 
-      <!-- Mô tả & CID -->
+      <!-- 11) Mô tả & IPFS -->
       <div class="card">
-        <div class="card-head"><h4>Mô tả chi tiết & IPFS</h4></div>
+        <div class="card-head"><h4>11. Mô tả chi tiết & IPFS</h4></div>
         <div class="card-body">
           <div class="row">
-            <label>Mô tả chi tiết (tối đa 20.000 ký tự)</label>
+            <label for="c_desc">Mô tả chi tiết (tối đa 20.000 ký tự)</label>
             <textarea id="c_desc" class="input" rows="8" maxlength="20000" placeholder="Bạn có thể bấm 'Tạo mô tả từ mẫu' để sinh nội dung chuẩn."></textarea>
           </div>
           <div class="actions" style="justify-content:flex-start;gap:8px;margin-top:8px">
@@ -403,13 +423,13 @@ function openCreateModal() {
             <span class="small muted">→ pin IPFS rồi dán CID vào ô dưới</span>
           </div>
           <div class="row" style="margin-top:10px">
-            <label>CID chi tiết (IPFS)</label>
+            <label for="c_cid">CID chi tiết (IPFS)</label>
             <input id="c_cid" class="input" placeholder="CID/IPFS URL (khuyến nghị)">
           </div>
         </div>
       </div>
 
-      <div class="actions">
+      <div class="actions" style="margin-top:10px">
         <button class="btn" id="c_cancel">Hủy</button>
         <button class="btn primary" id="c_ok">Ký & Đăng</button>
       </div>
@@ -468,7 +488,7 @@ function openCreateModal() {
 
 ---
 
-> *Dữ liệu on-chain minh bạch. Mọi người có thể xem và theo dõi tiến trình trên VicScan.*`;
+> *Dữ liệu on-chain minh bạch. Mọi người có thể xem và theo dõi trên VicScan.*`;
       m.querySelector("#c_desc").value = md;
     };
 
@@ -484,13 +504,14 @@ function openCreateModal() {
     };
     m.querySelector("#c_desc_gen").onclick = genDesc;
 
+    // Close / Submit
     m.querySelector("#c_cancel").onclick = () => m.remove();
     m.querySelector("#c_ok").onclick = async () => {
       try {
         // Validate minimal required fields
         const orgName = (m.querySelector("#org_name").value || "").trim();
         const sellName = (m.querySelector("#sell_name").value || "").trim();
-        if (!orgName || !sellName) throw new Error("Vui lòng điền tên Đơn vị tổ chức và Bên bán (bắt buộc).");
+        if (!orgName || !sellName) throw new Error("Vui lòng điền Tên Đơn vị tổ chức và Tên Bên bán (bắt buộc).");
 
         const sv = toUnix(m.querySelector("#c_sv").value);
         const ev = toUnix(m.querySelector("#c_ev").value);
@@ -504,18 +525,13 @@ function openCreateModal() {
         let cid = (m.querySelector("#c_cid").value || "").trim().replace(/^ipfs:\/\//, "");
 
         // Logical time constraints:
-        // xem: sv<=ev; cọc: ds<=dc; đấu giá: as<ae; và sv<=ev<=dc<=as<ae (chuỗi logic để whitelist/bid đúng thời điểm)
+        // xem: sv<=ev; cọc: ds<=dc; đấu giá: as<ae; và ev<=dc<=as<ae
         if (!(sv && ev && ds && dc && as && ae)) throw new Error("Thiếu mốc thời gian.");
         if (!(sv <= ev)) throw new Error("Thời gian xem: bắt đầu phải ≤ kết thúc.");
         if (!(ds <= dc)) throw new Error("Đặt cọc: bắt đầu phải ≤ hạn cập nhật ví.");
         if (!(as < ae)) throw new Error("Đấu giá: bắt đầu phải < kết thúc.");
         if (!(ev <= dc && dc <= as)) throw new Error("Logic thời gian: (xem) ≤ (hạn cập nhật ví) ≤ (đấu giá).");
         if (step.lte(0)) throw new Error("Bước giá phải > 0.");
-
-        // Khuyến nghị CID (không bắt buộc)
-        if (!cid) {
-          if (!confirm("Bạn chưa nhập CID IPFS cho mô tả. Vẫn tạo phiên (không có mô tả công khai)?")) return;
-        }
 
         // Thu phí VIN (1 USD) + create
         await ensurePlatformFeeAllowance();
@@ -539,7 +555,7 @@ function openCreateModal() {
 function openUpdateWhitelistModal(auctionId) {
   const m = modal(`
     <h3>Cập nhật ví đã đặt cọc (#${auctionId})</h3>
-    <p class="small muted">Chỉ cập nhật trước thời điểm "Hạn cập nhật ví". Người có trong danh sách sẽ thấy nút "Bỏ giá" khi tới thời gian đấu giá.</p>
+    <p class="small muted">Chỉ cập nhật trước mốc "Hạn cập nhật ví". Người có tên trong danh sách sẽ thấy nút "Bỏ giá" trong thời gian đấu giá.</p>
     <div class="row"><label>Địa chỉ ví (mỗi dòng 1 địa chỉ)</label><textarea id="w_addrs" class="input" rows="6" placeholder="0xabc...\n0xdef..."></textarea></div>
     <div class="row"><label>UNC proof CIDs (tuỳ chọn; cùng số dòng)</label><textarea id="w_unc" class="input" rows="4" placeholder="cid1\ncid2"></textarea></div>
     <div class="actions">
@@ -797,15 +813,13 @@ function modal(innerHTML){
   wrap.style.alignItems="center"; wrap.style.justifyContent="center"; wrap.style.zIndex="100";
   const box = document.createElement("div");
   box.style.background="var(--bg-card)"; box.style.border="1px solid var(--border)";
-  box.style.borderRadius="12px"; box.style.padding="16px"; box.style.minWidth="320px"; box.style.maxWidth="94vw";
+  box.style.borderRadius="12px"; box.style.padding="16px"; box.style.minWidth="320px"; box.style.maxWidth="860px";
+  box.style.width="96vw";
   box.style.boxShadow="0 12px 40px rgba(0,0,0,.45)";
   box.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:12px">${innerHTML}</div>
     <style>
-      .row{display:flex;flex-direction:column;gap:6px}
-      .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-      .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-      @media (max-width:768px){ .grid2,.grid3{grid-template-columns:1fr} }
+      .row{display:block;margin-bottom:12px}
       input,textarea{padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text)}
       textarea{white-space:pre-wrap}
       .actions{display:flex;gap:8px;justify-content:flex-end}
