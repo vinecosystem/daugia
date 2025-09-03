@@ -1,176 +1,298 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <!-- =========================================================
-       daugia.vin — index.html (reboot: siêu tối giản & dễ dùng)
-       ========================================================= -->
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>daugia.vin — Đấu giá minh bạch trên Blockchain</title>
-  <meta name="description" content="Nền tảng đấu giá on-chain minh bạch, dễ dùng cho mọi người. Chỉ ví đã cọc (được whitelist trước hạn) mới có thể bỏ giá trong khung giờ đã định." />
-  <link rel="icon" type="image/png" href="vin64.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
-</head>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>daugia.vin — Minh bạch & Công bằng trên Blockchain</title>
 
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="64x64" href="vin64.png" />
+  <link rel="apple-touch-icon" href="vin128.png" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Ethers (UMD v5) cho app.js -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
 <body>
-  <!-- =============== Header: Logo + Connect =============== -->
+  <!-- ====== HEADER / NAV ====== -->
   <header class="nav">
     <div class="nav-left">
-      <img id="logo-main" src="vin128.png" alt="daugia.vin" />
-      <div>
-        <h1 class="brand-title">daugia.vin</h1>
-        <p class="brand-sub">Đấu giá minh bạch trên Blockchain</p>
+      <img src="vin128.png" alt="VIN" class="logo" />
+      <div class="brand">
+        <h1 class="site">daugia.vin</h1>
+        <p class="tagline">Công bằng • Minh bạch • Tự động • On-chain</p>
       </div>
     </div>
+
     <div class="nav-right">
-      <button id="btnConnect" class="btn primary">Kết nối ví</button>
-      <button id="btnDisconnect" class="btn hidden">Ngắt kết nối</button>
+      <!-- Giá VIN theo USD (BINANCE VICUSDT * 100) -->
+      <div class="price-chip">
+        1 VIN = <span id="vinUsd">Loading price...</span> USD
+      </div>
+
+      <!-- Kết nối / Ngắt kết nối -->
+      <button id="connectBtn" class="btn primary" data-state="disconnected">Kết nối ví</button>
+      <div id="addrShort" class="addr" hidden>0x…</div>
     </div>
   </header>
 
-  <!-- =============== Toolbar: Tìm kiếm + Giá VIN + CTA =============== -->
-  <section class="toolbar">
-    <div class="search">
-      <input id="searchQuery" class="input" type="text" placeholder="Tìm theo ID / địa chỉ ví organizer / từ khóa…" />
+  <!-- ====== INFO BAR ====== -->
+  <section class="infobar">
+    <div class="net">
+      <span class="dot" id="netDot"></span>
+      <span id="networkName">Viction • chainId 88</span>
+    </div>
+    <div class="balances" id="balancesBar" hidden>
+      <span>VIC: <strong id="vicBalance">—</strong></span>
+      <span>VIN: <strong id="vinBalance">—</strong></span>
+    </div>
+    <div class="explorer">
+      <a id="contractLink" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
+      <span class="sep">•</span>
+      <a id="tokenLink" target="_blank" rel="noopener">VIN Token</a>
+    </div>
+  </section>
+
+  <!-- ====== SEARCH BAR (luôn hiển thị) ====== -->
+  <section class="card">
+    <div class="row search-row">
+      <input id="searchQuery" type="text" placeholder="Nhập từ khoá (tên, mô tả, ví creator 0x…)" />
       <button id="btnSearch" class="btn">Tìm</button>
     </div>
-
-    <!-- Chỉ hiển thị giá trên giao diện (app.js tự tính để thu phí riêng) -->
-    <div class="chip" title="Giá tham chiếu: VIN = VIC x 100">
-      1 VIN ≈ <strong id="vinUsdValueMini">—</strong> USD
-    </div>
-
-    <!-- CTA duy nhất: Đăng ký (chưa đăng ký) / Tạo cuộc đấu giá (đã đăng ký) -->
-    <div class="actions-auth">
-      <button id="btnRegister" class="btn hidden">Đăng ký</button>
-      <button id="btnCreateAuction" class="btn primary hidden">Tạo cuộc đấu giá</button>
-    </div>
   </section>
 
-  <!-- =============== Wallet panel (ẩn khi chưa kết nối) =============== -->
-  <section id="walletPanel" class="wallet-panel" style="display:none">
-    <div class="grid">
-      <div><strong>Ví:</strong> <span id="accountShort">—</span></div>
-      <div><strong>Số dư VIC:</strong> <span id="vicBalance">—</span></div>
-      <div><strong>Số dư VIN:</strong> <span id="vinBalance">—</span></div>
-      <div class="actions-auth">
-        <a id="linkVicScan" class="btn ghost" href="#" target="_blank" rel="noreferrer">Xem ví trên VicScan</a>
+  <!-- ====== KHỐI TÍNH NĂNG CHỈ HIỂN THỊ KHI ĐÃ KẾT NỐI ====== -->
+  <section id="walletArea" class="card" hidden>
+    <div class="title-row">
+      <h2>Ví của bạn</h2>
+      <div class="right">
+        <span id="walletAddrFull" class="mono small">—</span>
       </div>
     </div>
-  </section>
 
-  <!-- =============== Main: Danh sách phiên =============== -->
-  <main class="container">
-    <section class="card">
-      <div class="card-body">
-        <div id="auctionList" class="grid-cards">
-          <div class="skeleton">Đang tải dữ liệu…</div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- =============== Footer: Liên kết nhanh =============== -->
-  <footer class="footer">
-    <div class="footer-inner">
-      <div class="footer-col">
-        <h4>Liên kết nhanh</h4>
-        <ul class="links">
-          <li><a id="lnkGuideBottom" href="#" rel="noreferrer">📘 Hướng dẫn</a></li>
-          <li><a id="lnkSwap" href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noreferrer">🔁 Swap VIN/VIC</a></li>
-          <li><a id="lnkAuctionContract" href="#" target="_blank" rel="noreferrer">📜 Hợp đồng đấu giá</a></li>
-          <li><a id="lnkVinToken" href="#" target="_blank" rel="noreferrer">💠 VIN Token</a></li>
-        </ul>
-      </div>
-    </div>
-  </footer>
-
-  <!-- =============== Template thẻ đấu giá (render bởi app.js) =============== -->
-  <template id="tpl-auction-card">
-    <div class="card">
-      <div class="card-head">
-        <h4 class="auc-title">Cuộc đấu giá</h4>
-        <p class="muted small">
-          ID <span class="auc-id">#0</span> • Organizer:
-          <a class="auc-organizer" href="#" target="_blank" rel="noreferrer">0x…</a>
+    <div class="grid-2">
+      <!-- Đăng ký tài khoản (thu 1 USD bằng VIN) -->
+      <div class="box">
+        <h3>Đăng ký</h3>
+        <p class="muted">
+          Ví chưa đăng ký sẽ cần ký giao dịch thu <strong>1 USD (tính theo VIN)</strong>. Sau khi thành công, nút đăng ký sẽ ẩn.
         </p>
-      </div>
-      <div class="card-body">
-        <div class="auc-meta"><!-- thời gian / cutoff / giá / bước giá / link / giá hiện tại --></div>
-        <div class="auc-detail"></div>
-        <div class="auction-actions">
-          <button class="btn" data-action="join">Tham gia</button>
-          <button class="btn ghost btn-update-whitelist hidden" data-auction-id="">Cập nhật ví đã cọc</button>
-          <button class="btn btn-bid hidden" data-auction-id="">Bỏ giá</button>
-          <button class="btn ghost hidden" data-action="back">Quay lại danh sách</button>
+        <div class="actions">
+          <button id="btnRegister" class="btn accent">Đăng ký (1 USD)</button>
+          <span id="registerStatus" class="status"></span>
         </div>
       </div>
-      <div class="card-foot">
-        <a class="btn ghost auc-open-onchain" href="#" target="_blank" rel="noreferrer">Mở trên VicScan</a>
+
+      <!-- Tạo cuộc đấu giá -->
+      <div class="box">
+        <h3>Tạo cuộc đấu giá</h3>
+        <p class="muted">Bấm nút dưới để mở biểu mẫu tạo mới.</p>
+        <div class="actions">
+          <button id="openCreateForm" class="btn">Tạo cuộc đấu giá</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== FORM TẠO CUỘC ĐẤU GIÁ (ẩn/hiện khi đã kết nối) ====== -->
+  <section id="createForm" class="card" hidden>
+    <h2>Đăng cuộc đấu giá mới</h2>
+    <p class="muted">Phí đăng: <strong>1 USD bằng VIN</strong>. Tất cả dữ liệu lưu on-chain. Tối đa <strong>20.000</strong> ký tự cho nội dung.</p>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="startTime">2.1 Thời gian bắt đầu</label>
+        <input id="startTime" type="datetime-local" />
+      </div>
+      <div class="field">
+        <label for="endTime">2.1 Thời gian kết thúc</label>
+        <input id="endTime" type="datetime-local" />
+      </div>
+
+      <div class="field">
+        <label for="startPrice">2.2 Giá khởi điểm (VIN)</label>
+        <input id="startPrice" type="number" min="0" step="0.000000000000000001" placeholder="VD: 10" />
+      </div>
+      <div class="field">
+        <label for="minBidStep">2.3 Bước giá (VIN)</label>
+        <input id="minBidStep" type="number" min="0" step="0.000000000000000001" placeholder="VD: 0.5" />
+      </div>
+
+      <div class="field">
+        <label for="depositCloseTime">2.4 Hạn cuối cập nhật ví đã đặt cọc</label>
+        <input id="depositCloseTime" type="datetime-local" />
+      </div>
+
+      <div class="field full">
+        <label for="auctionContent">2.5 Nội dung đấu giá / Thông báo</label>
+        <textarea id="auctionContent" rows="5" maxlength="20000" placeholder="Mô tả tài sản, điều kiện tham gia, giấy tờ, vv."></textarea>
+        <div class="muted small"><span id="contentCount">0</span>/20000</div>
+      </div>
+
+      <div class="field full">
+        <label for="mediaLinks">2.6 Link hình ảnh / video (không bắt buộc)</label>
+        <input id="mediaLinks" type="text" placeholder="Dán URL, có thể nhiều link cách nhau bằng dấu phẩy" />
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="btnPublish" class="btn primary">Đăng (1 USD VIN)</button>
+      <span id="publishStatus" class="status"></span>
+    </div>
+  </section>
+
+  <!-- ====== DANH SÁCH CUỘC ĐẤU GIÁ ====== -->
+  <section class="card">
+    <div class="title-row">
+      <h2>Cuộc đấu giá</h2>
+      <div class="filters">
+        <select id="filterState">
+          <option value="all">Tất cả</option>
+          <option value="upcoming">Chưa diễn ra</option>
+          <option value="live">Đang diễn ra</option>
+          <option value="ended">Đã kết thúc</option>
+        </select>
+        <button id="btnReload" class="btn">Tải lại</button>
+      </div>
+    </div>
+
+    <!-- Lưới thẻ đấu giá -->
+    <div id="auctionGrid" class="grid-list">
+      <!-- app.js sẽ render các thẻ .auction-card -->
+    </div>
+
+    <!-- Phân trang -->
+    <div class="pagination" id="pagination" hidden>
+      <button id="prevPage" class="btn ghost">← Trước</button>
+      <span id="pageInfo">Trang 1</span>
+      <button id="nextPage" class="btn ghost">Sau →</button>
+    </div>
+  </section>
+
+  <!-- ====== TEMPLATE THẺ ĐẤU GIÁ (để app.js clone) ====== -->
+  <template id="auctionCardTpl">
+    <div class="auction-card">
+      <div class="card-head">
+        <h3 class="title"></h3>
+        <span class="badge status">—</span>
+      </div>
+
+      <div class="kv-list">
+        <div class="kv"><span>Creator:</span><code class="creator mono">—</code></div>
+        <div class="kv"><span>Bắt đầu:</span><span class="start">—</span></div>
+        <div class="kv"><span>Kết thúc:</span><span class="end">—</span></div>
+        <div class="kv"><span>Hạn cập nhật cọc:</span><span class="deposit-deadline">—</span></div>
+        <div class="kv"><span>Giá khởi điểm (VIN):</span><span class="start-price">—</span></div>
+        <div class="kv"><span>Bước giá (VIN):</span><span class="step">—</span></div>
+        <div class="kv"><span>Giá hiện thời (VIN):</span><span class="current-price">—</span></div>
+        <div class="kv"><span>Giá hiện thời (USD):</span><span class="current-usd">—</span></div>
+      </div>
+
+      <div class="desc multiline"></div>
+
+      <!-- Hành động theo yêu cầu:
+           - Tham gia: chỉ để hiển thị cuộc đấu giá đã chọn
+           - Bỏ giá: dành cho ví đã đặt cọc
+           - Cập nhật ví đã đặt cọc: chỉ dành cho creator -->
+      <div class="actions">
+        <button class="btn join-btn">Tham gia</button>
+        <div class="inline-bid">
+          <input type="number" class="bid-input" min="0" step="0.000000000000000001" placeholder="Nhập giá VIN" />
+          <button class="btn primary bid-btn">Bỏ giá</button>
+        </div>
+        <button class="btn ghost update-depositors-btn">Cập nhật ví đã đặt cọc</button>
       </div>
     </div>
   </template>
 
-  <!-- =============== Thư viện & Cấu hình nền tảng =============== -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
+  <!-- ====== MODAL CẬP NHẬT VÍ ĐÃ ĐẶT CỌC (creator) ====== -->
+  <div id="updateDepositorsModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <button id="updDepoClose" class="modal-close" aria-label="Đóng">×</button>
+      <h3>Cập nhật ví đã đặt cọc</h3>
+      <p class="muted">Dán danh sách địa chỉ (phân tách bằng dấu phẩy, xuống dòng đều được).</p>
+      <textarea id="updDepositorsInput" rows="6" placeholder="0xabc...,0xdef..., ..."></textarea>
+      <div class="actions">
+        <button id="updDepositorsConfirm" class="btn primary">Cập nhật</button>
+        <span id="updDepositorsStatus" class="status"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== FOOTER NAV (luôn hiển thị) ====== -->
+  <footer class="footer">
+    <nav class="footnav">
+      <a id="linkSwap" target="_blank" rel="noopener">Swap VIN/VIC</a>
+      <span class="sep">•</span>
+      <a id="linkAuctionC" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
+      <span class="sep">•</span>
+      <a id="linkVinToken" target="_blank" rel="noopener">VIN Token</a>
+      <span class="sep">•</span>
+      <a id="linkGuide" target="_blank" rel="noopener">Hướng dẫn</a>
+    </nav>
+    <div class="copy">© <span id="yearNow"></span> daugia.vin</div>
+  </footer>
+
+  <!-- ====== HẰNG SỐ ĐỊA CHỈ ====== -->
   <script>
-    // Cấu hình chain/contract (đồng bộ với app.js)
-    window.DGV_CONFIG = {
-      CHAIN_ID_HEX: "0x58", // Viction chainId = 88
+    window.DAUGIA_CFG = {
+      CHAIN_ID_HEX: "0x58", // 88
       RPC_URL: "https://rpc.viction.xyz",
       EXPLORER: "https://vicscan.xyz",
       AUCTION_ADDR: "0x1765e20ecB8cD78688417A6d4123f2b899775599",
-      VIN_ADDR: "0x941F63807401efCE8afe3C9d88d368bAA287Fac4"
+      VIN_ADDR:     "0x941F63807401efCE8afe3C9d88d368bAA287Fac4",
+      SWAP_URL:     "https://fortunerolls.github.io/vicdex"  // có thể đổi sau
     };
+  </script>
 
-    // Cập nhật các liên kết cố định theo config
-    (function initLinks(){
-      const { EXPLORER, AUCTION_ADDR, VIN_ADDR } = window.DGV_CONFIG;
-      document.getElementById('lnkAuctionContract').href = `${EXPLORER}/address/${AUCTION_ADDR}`;
-      document.getElementById('lnkVinToken').href       = `${EXPLORER}/address/${VIN_ADDR}`;
+  <!-- ====== SCRIPT NHẸ TRONG INDEX (giá VIN & link) ====== -->
+  <script>
+    // Cập nhật năm
+    document.getElementById("yearNow").textContent = new Date().getFullYear();
+
+    // Set các link explorer & điều hướng
+    (function initLinks() {
+      const { EXPLORER, AUCTION_ADDR, VIN_ADDR, SWAP_URL } = window.DAUGIA_CFG;
+      const addrLink = (base, addr) => `${base}/address/${addr}`;
+
+      document.getElementById("contractLink").href = addrLink(EXPLORER, AUCTION_ADDR);
+      document.getElementById("tokenLink").href    = addrLink(EXPLORER, VIN_ADDR);
+
+      document.getElementById("linkAuctionC").href = addrLink(EXPLORER, AUCTION_ADDR);
+      document.getElementById("linkVinToken").href = addrLink(EXPLORER, VIN_ADDR);
+      document.getElementById("linkSwap").href     = SWAP_URL;
+      document.getElementById("linkGuide").href    = "#"; // sẽ trỏ tới docs sau
     })();
 
-    // ===== Giá VIN (UI): VIC/USDT * 100 — độc lập với logic thu phí của app.js
-    async function updateVinPriceUI() {
+    // Lấy giá VIC/USDT từ Binance, nhân 100 để ra giá VIN (1 VIN = 100 VIC)
+    async function updateVinUsd() {
+      const el = document.getElementById("vinUsd");
       try {
-        const r = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT", { cache: "no-store" });
-        const data = await r.json();
-        const vicUsd = parseFloat(data?.price);
-        if (!isFinite(vicUsd)) throw new Error("No VIC price");
-        const vinUsd = vicUsd * 100;
-        document.getElementById("vinUsdValueMini").textContent = vinUsd.toFixed(2);
-        // phát sự kiện (nếu app.js muốn lắng nghe)
-        window.dispatchEvent(new CustomEvent("vin-price", { detail: { priceUsd: vinUsd } }));
-      } catch {
-        document.getElementById("vinUsdValueMini").textContent = "—";
+        const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT", { cache: "no-store" });
+        if (!res.ok) throw new Error("Bad response");
+        const data = await res.json();
+        const vic = parseFloat(data.price || "0");
+        if (!isFinite(vic) || vic <= 0) throw new Error("No price");
+        const vin = vic * 100; // 1 VIN = 100 VIC
+        el.textContent = vin.toFixed(2);
+      } catch (e) {
+        el.textContent = "N/A";
       }
     }
-    updateVinPriceUI();
-    // setInterval(updateVinPriceUI, 60000);
+    updateVinUsd();
+    // Cập nhật lại mỗi 60s
+    setInterval(updateVinUsd, 60000);
 
-    // ===== Chuyển sự kiện sang app.js (đơn giản, nhất quán) =====
-    document.getElementById('btnSearch').addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('do-search'));
-    });
-    document.getElementById('btnRegister').addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('do-register'));
-    });
-    document.getElementById('btnCreateAuction').addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('open-create'));
-    });
-    document.getElementById('btnConnect').addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('do-connect'));
-    });
-    document.getElementById('btnDisconnect').addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('do-disconnect'));
-    });
-    document.getElementById('lnkGuideBottom').addEventListener('click', (e) => {
-      e.preventDefault();
-      window.dispatchEvent(new CustomEvent('open-guide'));
-    });
+    // Đếm ký tự nội dung tạo đấu giá
+    const contentEl = document.getElementById("auctionContent");
+    if (contentEl) {
+      const counter = document.getElementById("contentCount");
+      const sync = () => (counter.textContent = String(contentEl.value.length));
+      contentEl.addEventListener("input", sync);
+      sync();
+    }
   </script>
 
   <!-- App logic -->
