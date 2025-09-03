@@ -1,14 +1,10 @@
 /* =============================================================
-   daugia.vin — app.js (vertical create form, numbered 1..11)
-   - Wallet connect (MetaMask, chainId 88 – Viction)
-   - Show addr short, VIC & VIN balances
-   - Register → single CTA ("Tạo cuộc đấu giá")
-   - All actions charge 1 USD in VIN (pricing independent from UI)
-   - Create form: 11 mục dọc, đánh số rõ ràng (không dùng grid)
-   - Each auction card:
-     + "Tham gia": focus 1 phiên + "Quay lại danh sách"
-     + Organizer: "Cập nhật ví đã cọc" (trước cutoff)
-     + Whitelisted: "Bỏ giá" (chỉ trong time window)
+   daugia.vin — app.js (v3 minimalist)
+   - MetaMask / Viction (chainId 88)
+   - Balances VIC/VIN, register (1 USD VIN), create auction (1 USD VIN)
+   - Create form: 5 fields (from-to, cutoff, startPrice, step, content+link)
+   - Whitelist can be updated only before cutoff
+   - Bid visible only for whitelisted & within auction time; min = cur + step
    ============================================================= */
 
 /** ================= Config ================= **/
@@ -50,14 +46,12 @@ const ABI_ERC20 = [
 /** ================= State ================= **/
 let readonlyProvider, provider, signer, userAddr;
 let auction, vin;
-let vinDecimals = 18, vinSymbol = "VIN";
+let vinDecimals = 18;
 
-// Pricing for FEES ONLY (independent of index.html UI)
-let lastVinUsd = NaN;     // USD per VIN
+let lastVinUsd = NaN;      // USD per VIN (from VIC/USDT × 100)
 let lastPriceUpdatedAt = 0;
 
-// Focused auction view (after "Tham gia")
-let activeAuctionId = null;
+let activeAuctionId = null; // focus mode
 
 /** ================= Boot ================= **/
 bootstrap();
@@ -75,21 +69,22 @@ async function bootstrap() {
 
   auction = new ethers.Contract(CFG.AUCTION_ADDR, ABIAuction, readonlyProvider);
 
-  // Internal price loop (independent of UI)
+  // Internal price loop (independent from UI chip)
   await refreshVinPriceForApp();
   setInterval(refreshVinPriceForApp, 60000);
 
-  // Wire UI events
   wireUIEvents();
   window.addEventListener("wallet-state", handleWalletStateUI);
 
   // Render as guest
   await renderAllAuctions();
 
-  // Auto connect if already authorized
+  // Auto-connect if site already authorized
   if (window.ethereum) {
     const accs = await provider.listAccounts().catch(()=>[]);
-    if (accs && accs.length) await connectWallet().catch(()=>{});
+    if (accs && accs.length) {
+      await connectWallet().catch(()=>{});
+    }
   }
 }
 
@@ -110,7 +105,7 @@ async function refreshVinPriceForApp() {
     const data = await r.json();
     const vicUsd = parseFloat(data?.price);
     if (!isFinite(vicUsd)) throw new Error("No VIC/USDT price");
-    lastVinUsd = vicUsd * 100; // VIN = VIC * 100
+    lastVinUsd = vicUsd * 100; // VIN/USD
     lastPriceUpdatedAt = Date.now();
   } catch (e) {
     console.warn("refreshVinPriceForApp:", e?.message || e);
@@ -120,7 +115,7 @@ async function ensureVinPrice() {
   if (!(lastVinUsd > 0) || (Date.now() - lastPriceUpdatedAt > 120000)) {
     await refreshVinPriceForApp();
   }
-  if (!(lastVinUsd > 0)) throw new Error("Không lấy được giá VIN/USD để tính phí. Vui lòng thử lại.");
+  if (!(lastVinUsd > 0)) throw new Error("Không lấy được giá VIN/USD để tính phí.");
 }
 
 /** ================= Wallet connect / disconnect ================= **/
@@ -141,7 +136,7 @@ async function connectWallet() {
       await window.ethereum.request({
         method: "wallet_addEthereumChain",
         params: [{
-          chainId: CFG.CAIN_ID_HEX || CFG.CHAIN_ID_HEX,
+          chainId: CFG.CHAIN_ID_HEX,
           chainName: "Viction",
           rpcUrls: [CFG.RPC_URL],
           nativeCurrency: { name: "VIC", symbol: "VIC", decimals: 18 },
@@ -163,9 +158,7 @@ async function connectWallet() {
   } catch {
     vin = new ethers.Contract(CFG.VIN_ADDR, ABI_ERC20, signer);
   }
-
   try { vinDecimals = await vin.decimals(); } catch {}
-  try { vinSymbol = await vin.symbol(); } catch {}
 
   if (!window.__dgv_bound) {
     window.__dgv_bound = true;
@@ -221,7 +214,6 @@ function handleWalletStateUI(ev) {
   const vicBalance = document.getElementById("vicBalance");
   const vinBalance = document.getElementById("vinBalance");
 
-  // Single CTA on toolbar
   const btnRegister = document.getElementById("btnRegister");
   const btnCreate = document.getElementById("btnCreateAuction");
 
@@ -229,11 +221,11 @@ function handleWalletStateUI(ev) {
   if (s.connected) {
     btnConnect?.classList.add("hidden");
     btnDisconnect?.classList.remove("hidden");
-    walletPanel?.style && (walletPanel.style.display = "block");
+    walletPanel.style.display = "block";
   } else {
     btnConnect?.classList.remove("hidden");
     btnDisconnect?.classList.add("hidden");
-    walletPanel?.style && (walletPanel.style.display = "none");
+    walletPanel.style.display = "none";
   }
 
   // Wallet info
@@ -263,7 +255,7 @@ function dispatchWalletState(detail) {
 
 /** ================= Platform fee (1 USD VIN) + fast gas ================= **/
 async function getRequiredPlatformFeeWei() {
-  await ensureVinPrice(); // fetch if missing/stale
+  await ensureVinPrice();
   const vinNeed = 1 / lastVinUsd; // 1 USD / (USD per VIN)
   const vinNeedWei = ethers.utils.parseUnits(vinNeed.toString(), vinDecimals);
   let feeOnChain = ethers.constants.Zero;
@@ -284,7 +276,6 @@ async function sendFast(txReq) {
     const est = await signer.estimateGas(txReq);
     txReq.gasLimit = est.mul(150).div(100);
   } catch {}
-
   try {
     const fee = await provider.getFeeData();
     if (fee.maxFeePerGas) {
@@ -296,135 +287,71 @@ async function sendFast(txReq) {
   } catch {
     txReq.gasPrice = ethers.utils.parseUnits("100", "gwei");
   }
-
   const tx = await signer.sendTransaction(txReq);
   return await tx.wait();
 }
 
-/** ================= Register (charge 1 USD in VIN) ================= **/
+/** ================= Register (charge 1 USD VIN) ================= **/
 async function onRegisterOneUsd() {
   try {
     await ensureConnected();
     await ensurePlatformFeeAllowance();
-
     const txReq = await auction.populateTransaction.registerOrganizer("");
     await sendFast(txReq);
-
     alert("Đăng ký thành công!");
-    await refreshWalletPanel(); // CTA changes to "Tạo cuộc đấu giá"
+    await refreshWalletPanel();
   } catch (e) {
     console.error(e);
     alert(e?.message || "Đăng ký thất bại.");
   }
 }
 
-/** ================= Create auction (charge 1 USD in VIN) ================= **/
+/** ================= Create auction (charge 1 USD VIN) ================= **/
 function openCreateModal() {
   ensureConnected().then(async () => {
     const registered = await auction.registeredOrganizer(userAddr).catch(()=>false);
     if (!registered) return alert("Bạn chưa đăng ký.");
 
-    // *** Modal vertical form: 11 mục, đánh số rõ ràng, mỗi hàng 1 input ***
+    // FORM TỐI GIẢN — 5 trường quan trọng
     const m = modal(`
-      <h3 style="margin-bottom:8px">Tạo cuộc đấu giá</h3>
+      <h3 style="margin-bottom:8px">Tạo cuộc đấu giá (tối giản)</h3>
 
-      <!-- 1) Đơn vị tổ chức -->
       <div class="card">
-        <div class="card-head"><h4>1. Thông tin đơn vị tổ chức đấu giá</h4></div>
-        <div class="card-body">
-          <div class="row"><label for="org_name">Tên đơn vị (bắt buộc)</label><input id="org_name" class="input" placeholder="Công ty Đấu giá ABC *"></div>
-          <div class="row"><label for="org_addr">Địa chỉ (tuỳ chọn)</label><input id="org_addr" class="input" placeholder="Số, đường, phường/xã, quận/huyện, tỉnh/thành"></div>
-          <div class="row"><label for="org_phone">Số điện thoại (tuỳ chọn)</label><input id="org_phone" class="input" placeholder="+84…"></div>
-          <div class="row"><label for="org_email">Email (tuỳ chọn)</label><input id="org_email" class="input" placeholder="email@domain.com"></div>
-          <div class="row"><label for="org_web">Website (tuỳ chọn)</label><input id="org_web" class="input" placeholder="https://…"></div>
-          <div class="row"><label for="org_tax">Mã số thuế / GPKD (tuỳ chọn)</label><input id="org_tax" class="input" placeholder="0101xxxxxxx"></div>
-        </div>
-      </div>
-
-      <!-- 2) Bên bán -->
-      <div class="card">
-        <div class="card-head"><h4>2. Thông tin bên bán tài sản</h4></div>
-        <div class="card-body">
-          <div class="row"><label for="sell_name">Tên đơn vị (bắt buộc)</label><input id="sell_name" class="input" placeholder="Công ty/Bên bán *"></div>
-          <div class="row"><label for="sell_addr">Địa chỉ (tuỳ chọn)</label><input id="sell_addr" class="input"></div>
-          <div class="row"><label for="sell_phone">Số điện thoại (tuỳ chọn)</label><input id="sell_phone" class="input"></div>
-          <div class="row"><label for="sell_email">Email (tuỳ chọn)</label><input id="sell_email" class="input"></div>
-          <div class="row"><label for="sell_web">Website (tuỳ chọn)</label><input id="sell_web" class="input"></div>
-          <div class="row"><label for="sell_tax">Mã số thuế / GPKD (tuỳ chọn)</label><input id="sell_tax" class="input"></div>
-        </div>
-      </div>
-
-      <!-- 3) Xem tài sản -->
-      <div class="card">
-        <div class="card-head"><h4>3. Thời gian xem tài sản</h4></div>
-        <div class="card-body">
-          <div class="row"><label for="c_sv">Bắt đầu</label><input id="c_sv" type="datetime-local" class="input"></div>
-          <div class="row"><label for="c_ev">Kết thúc</label><input id="c_ev" type="datetime-local" class="input"></div>
-        </div>
-      </div>
-
-      <!-- 4) Nộp cọc -->
-      <div class="card">
-        <div class="card-head"><h4>4. Thời gian nộp tiền đặt cọc</h4></div>
-        <div class="card-body">
-          <div class="row"><label for="c_ds">Bắt đầu</label><input id="c_ds" type="datetime-local" class="input"></div>
-        </div>
-      </div>
-
-      <!-- 5) Hạn cập nhật ví -->
-      <div class="card">
-        <div class="card-head"><h4>5. Hạn cập nhật ví đã đặt cọc</h4></div>
-        <div class="card-body">
-          <div class="row"><label for="c_dc">Hạn cuối</label><input id="c_dc" type="datetime-local" class="input"></div>
-        </div>
-      </div>
-
-      <!-- 6) Tài khoản nhận cọc -->
-      <div class="card">
-        <div class="card-head"><h4>6. Thông tin nhận tiền đặt cọc (ngoài chuỗi)</h4></div>
-        <div class="card-body">
-          <div class="row"><label for="dep_owner">Tên chủ tài khoản</label><input id="dep_owner" class="input" placeholder="Nguyễn Văn A"></div>
-          <div class="row"><label for="dep_acc">Số tài khoản ngân hàng</label><input id="dep_acc" class="input" placeholder="xxxxxxxxxx"></div>
-          <div class="row"><label for="dep_bank">Tên ngân hàng</label><input id="dep_bank" class="input" placeholder="VCB/TCB/…"></div>
-          <div class="row"><label for="dep_memo">Nội dung chuyển khoản</label><input id="dep_memo" class="input" placeholder='Mặc định: "Tên + địa chỉ ví VIC"'></div>
-        </div>
-      </div>
-
-      <!-- 7) Đấu giá -->
-      <div class="card">
-        <div class="card-head"><h4>7. Thời gian đấu giá</h4></div>
+        <div class="card-head"><h4>1) Thời gian đấu giá</h4></div>
         <div class="card-body">
           <div class="row"><label for="c_as">Bắt đầu</label><input id="c_as" type="datetime-local" class="input"></div>
           <div class="row"><label for="c_ae">Kết thúc</label><input id="c_ae" type="datetime-local" class="input"></div>
+          <p class="small muted">Chỉ trong khoảng này người được whitelist mới thấy nút <b>Bỏ giá</b>.</p>
         </div>
       </div>
 
-      <!-- 8-10) Giá & cọc -->
       <div class="card">
-        <div class="card-head"><h4>8–10. Giá & cọc (VND)</h4></div>
+        <div class="card-head"><h4>2) Hạn cập nhật ví đã đặt cọc</h4></div>
         <div class="card-body">
-          <div class="row"><label for="c_sp">8) Giá khởi điểm (VND)</label><input id="c_sp" type="number" min="0" step="1" class="input" placeholder="vd: 5000000000"></div>
-          <div class="row"><label for="c_step">9) Bước giá (VND)</label><input id="c_step" type="number" min="1" step="1" class="input" placeholder="vd: 100000000"></div>
-          <div class="row"><label for="c_dep">10) Mức tiền đặt cọc (VND)</label><input id="c_dep" type="number" min="0" step="1" class="input" placeholder="vd: 500000000"></div>
+          <div class="row"><label for="c_dc">Hạn cuối</label><input id="c_dc" type="datetime-local" class="input"></div>
+          <p class="small muted">Sau mốc này organizer không thể thêm ví vào whitelist.</p>
         </div>
       </div>
 
-      <!-- 11) Mô tả & IPFS -->
       <div class="card">
-        <div class="card-head"><h4>11. Mô tả chi tiết & IPFS</h4></div>
+        <div class="card-head"><h4>3) Giá khởi điểm & 4) Bước giá (VND)</h4></div>
+        <div class="card-body">
+          <div class="row"><label for="c_sp">Giá khởi điểm (VND)</label><input id="c_sp" type="number" min="0" step="1" class="input" placeholder="vd: 5000000000"></div>
+          <div class="row"><label for="c_step">Bước giá (VND)</label><input id="c_step" type="number" min="1" step="1" class="input" placeholder="vd: 100000000"></div>
+          <p class="small muted">Giá người sau phải ≥ (giá hiện tại + bước giá). Lần đầu phải ≥ giá khởi điểm.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h4>5) Nội dung cuộc đấu giá</h4></div>
         <div class="card-body">
           <div class="row">
-            <label for="c_desc">Mô tả chi tiết (tối đa 20.000 ký tự)</label>
-            <textarea id="c_desc" class="input" rows="8" maxlength="20000" placeholder="Bạn có thể bấm 'Tạo mô tả từ mẫu' để sinh nội dung chuẩn."></textarea>
+            <label for="c_desc">Mô tả ngắn gọn</label>
+            <textarea id="c_desc" class="input" rows="6" maxlength="20000" placeholder="Mô tả tài sản, điều kiện ngoài chuỗi (tài khoản nhận cọc...), lưu ý quan trọng..."></textarea>
           </div>
-          <div class="actions" style="justify-content:flex-start;gap:8px;margin-top:8px">
-            <button class="btn ghost" id="c_desc_gen">Tạo mô tả từ mẫu</button>
-            <button class="btn ghost" id="c_desc_save">Xuất mô tả (.txt)</button>
-            <span class="small muted">→ pin IPFS rồi dán CID vào ô dưới</span>
-          </div>
-          <div class="row" style="margin-top:10px">
-            <label for="c_cid">CID chi tiết (IPFS)</label>
-            <input id="c_cid" class="input" placeholder="CID/IPFS URL (khuyến nghị)">
+          <div class="row">
+            <label for="c_cid">Link kèm theo (không bắt buộc: IPFS CID/URL, website…)</label>
+            <input id="c_cid" class="input" placeholder="vd: ipfs://bafy... hoặc https://...">
           </div>
         </div>
       </div>
@@ -435,108 +362,42 @@ function openCreateModal() {
       </div>
     `);
 
-    // Generate description from form (Markdown)
-    const genDesc = () => {
-      const v = (id)=> (m.querySelector("#"+id)?.value || "").trim();
-      const md =
-`# Thông tin đấu giá
-
-## 1) Đơn vị tổ chức đấu giá
-- Tên đơn vị: **${v("org_name")}**
-- Địa chỉ: ${v("org_addr")}
-- Điện thoại: ${v("org_phone")}
-- Email: ${v("org_email")}
-- Website: ${v("org_web")}
-- MST/GPKD: ${v("org_tax")}
-
-## 2) Bên bán tài sản
-- Tên đơn vị: **${v("sell_name")}**
-- Địa chỉ: ${v("sell_addr")}
-- Điện thoại: ${v("sell_phone")}
-- Email: ${v("sell_email")}
-- Website: ${v("sell_web")}
-- MST/GPKD: ${v("sell_tax")}
-
-## 3) Thời gian xem tài sản
-- Bắt đầu: ${v("c_sv")}
-- Kết thúc: ${v("c_ev")}
-
-## 4) Thời gian nộp tiền đặt cọc
-- Bắt đầu: ${v("c_ds")}
-
-## 5) Hạn cập nhật ví đã đặt cọc
-- Trước: ${v("c_dc")}
-
-## 6) Thông tin nhận tiền đặt cọc (ngoài chuỗi)
-- Chủ TK: ${v("dep_owner")}
-- Số TK: ${v("dep_acc")}
-- Ngân hàng: ${v("dep_bank")}
-- Nội dung CK: ${v("dep_memo") || 'Tên + địa chỉ ví VIC'}
-
-## 7) Thời gian đấu giá
-- Bắt đầu: ${v("c_as")}
-- Kết thúc: ${v("c_ae")}
-
-## 8) Giá khởi điểm
-- ${v("c_sp")} VND
-
-## 9) Bước giá
-- +${v("c_step")} VND / bước
-
-## 10) Mức tiền đặt cọc
-- ${v("c_dep")} VND
-
----
-
-> *Dữ liệu on-chain minh bạch. Mọi người có thể xem và theo dõi trên VicScan.*`;
-      m.querySelector("#c_desc").value = md;
-    };
-
-    // Export description as .txt for IPFS pin
-    m.querySelector("#c_desc_save").onclick = () => {
-      const txt = m.querySelector("#c_desc").value || "";
-      const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "mo-ta-dau-gia.txt";
-      a.click();
-      URL.revokeObjectURL(a.href);
-    };
-    m.querySelector("#c_desc_gen").onclick = genDesc;
-
-    // Close / Submit
     m.querySelector("#c_cancel").onclick = () => m.remove();
     m.querySelector("#c_ok").onclick = async () => {
       try {
-        // Validate minimal required fields
-        const orgName = (m.querySelector("#org_name").value || "").trim();
-        const sellName = (m.querySelector("#sell_name").value || "").trim();
-        if (!orgName || !sellName) throw new Error("Vui lòng điền Tên Đơn vị tổ chức và Tên Bên bán (bắt buộc).");
-
-        const sv = toUnix(m.querySelector("#c_sv").value);
-        const ev = toUnix(m.querySelector("#c_ev").value);
-        const ds = toUnix(m.querySelector("#c_ds").value);
-        const dc = toUnix(m.querySelector("#c_dc").value);
         const as = toUnix(m.querySelector("#c_as").value);
         const ae = toUnix(m.querySelector("#c_ae").value);
+        const dc = toUnix(m.querySelector("#c_dc").value);
         const sp = toBN(m.querySelector("#c_sp").value);
         const step = toBN(m.querySelector("#c_step").value);
-        const dep = toBN(m.querySelector("#c_dep").value);
-        let cid = (m.querySelector("#c_cid").value || "").trim().replace(/^ipfs:\/\//, "");
+        let cid = (m.querySelector("#c_cid").value || "").trim();
+        const desc = (m.querySelector("#c_desc").value || "").trim();
 
-        // Logical time constraints:
-        // xem: sv<=ev; cọc: ds<=dc; đấu giá: as<ae; và ev<=dc<=as<ae
-        if (!(sv && ev && ds && dc && as && ae)) throw new Error("Thiếu mốc thời gian.");
-        if (!(sv <= ev)) throw new Error("Thời gian xem: bắt đầu phải ≤ kết thúc.");
-        if (!(ds <= dc)) throw new Error("Đặt cọc: bắt đầu phải ≤ hạn cập nhật ví.");
-        if (!(as < ae)) throw new Error("Đấu giá: bắt đầu phải < kết thúc.");
-        if (!(ev <= dc && dc <= as)) throw new Error("Logic thời gian: (xem) ≤ (hạn cập nhật ví) ≤ (đấu giá).");
+        // RÀNG BUỘC LOGIC THỜI GIAN
+        // - as < ae
+        // - dc <= as
+        if (!(as && ae && dc)) throw new Error("Thiếu mốc thời gian bắt buộc.");
+        if (!(as < ae)) throw new Error("Thời gian đấu giá: bắt đầu phải < kết thúc.");
+        if (!(dc <= as)) throw new Error("Hạn cập nhật ví phải trước hoặc đúng lúc bắt đầu đấu giá.");
         if (step.lte(0)) throw new Error("Bước giá phải > 0.");
+        if (sp.lt(0)) throw new Error("Giá khởi điểm không hợp lệ.");
 
-        // Thu phí VIN (1 USD) + create
+        // Map form tối giản vào createAuction:
+        // startView,endView,depositStart,depositCutoff,auctionStart,auctionEnd,startingPriceVND,minIncrementVND,depositAmountVND,detailCID
+        // Với phiên bản tối giản: không dùng khung xem & thời gian nộp cọc → set = 0.
+        const startView = 0, endView = 0, depositStart = 0;
+        let cidFinal = cid.replace(/^ipfs:\/\//, "");
+        if (!cidFinal && desc) {
+          // Nếu không có CID, nhét tạm mô tả ngắn vào CID field (tùy backend).
+          // Khuyến nghị: sau này đổi sang lưu desc riêng hoặc upload IPFS ngoài chuỗi.
+          cidFinal = desc.slice(0, 1800);
+        }
+
+        // Thu phí 1 USD VIN
         await ensurePlatformFeeAllowance();
+
         const txReq = await auction.populateTransaction.createAuction(
-          sv, ev, ds, dc, as, ae, sp, step, dep, cid
+          startView, endView, depositStart, dc, as, ae, sp, step, 0, cidFinal
         );
         await sendFast(txReq);
 
@@ -552,10 +413,14 @@ function openCreateModal() {
 }
 
 /** ================= Update whitelist (charge 1 USD VIN) ================= **/
-function openUpdateWhitelistModal(auctionId) {
+function openUpdateWhitelistModal(auctionId, depositCutoff) {
+  const now = Math.floor(Date.now()/1000);
+  if (now > Number(depositCutoff)) {
+    return alert("Đã quá hạn cập nhật ví đã đặt cọc.");
+  }
   const m = modal(`
     <h3>Cập nhật ví đã đặt cọc (#${auctionId})</h3>
-    <p class="small muted">Chỉ cập nhật trước mốc "Hạn cập nhật ví". Người có tên trong danh sách sẽ thấy nút "Bỏ giá" trong thời gian đấu giá.</p>
+    <p class="small muted">Chỉ cập nhật trước mốc "Hạn cập nhật ví".</p>
     <div class="row"><label>Địa chỉ ví (mỗi dòng 1 địa chỉ)</label><textarea id="w_addrs" class="input" rows="6" placeholder="0xabc...\n0xdef..."></textarea></div>
     <div class="row"><label>UNC proof CIDs (tuỳ chọn; cùng số dòng)</label><textarea id="w_unc" class="input" rows="4" placeholder="cid1\ncid2"></textarea></div>
     <div class="actions">
@@ -590,12 +455,15 @@ function openUpdateWhitelistModal(auctionId) {
 }
 
 /** ================= Place bid (charge 1 USD VIN) ================= **/
-function openBidModal(auctionId, currentPriceVND, minIncrementVND, auctionStart, auctionEnd) {
+function openBidModal(auctionId, currentPriceVND, minIncrementVND, auctionStart, auctionEnd, startingPriceVND) {
   const now = Math.floor(Date.now()/1000);
   if (!(now >= Number(auctionStart) && now <= Number(auctionEnd))) {
     return alert("Chưa đến hoặc đã qua thời gian đấu giá.");
   }
-  const minNext = ethers.BigNumber.from(currentPriceVND).add(minIncrementVND);
+  // Giá tối thiểu tiếp theo:
+  const base = ethers.BigNumber.from(currentPriceVND).gt(0) ? currentPriceVND : startingPriceVND;
+  const minNext = ethers.BigNumber.from(base).add(minIncrementVND);
+
   const m = modal(`
     <h3>Bỏ giá (#${auctionId})</h3>
     <p class="muted small">Tối thiểu: <b>${fmtVND(minNext)}</b></p>
@@ -736,46 +604,35 @@ async function renderOneAuctionCard(id, opts={}) {
 
     const meta = node.querySelector(".auc-meta");
     meta.innerHTML = `
-      <div><strong>Khung xem tài sản:</strong> ${fmtTime(startView)} → ${fmtTime(endView)}</div>
-      <div><strong>Nộp tiền đặt cọc:</strong> ${fmtTime(depositStart)} → <b>${fmtTime(depositCutoff)}</b></div>
       <div><strong>Thời gian đấu giá:</strong> ${fmtTime(auctionStart)} → <b>${fmtTime(auctionEnd)}</b> &nbsp; <span class="chip">Trạng thái: ${statusText(status, finalized, failed)}</span></div>
-      <div><strong>Giá khởi điểm:</strong> ${fmtVND(startingPriceVND)}</div>
+      <div><strong>Hạn cập nhật ví:</strong> <b>${fmtTime(depositCutoff)}</b></div>
+      <div><strong>Giá khởi điểm:</strong> <b>${fmtVND(startingPriceVND)}</b></div>
       <div><strong>Bước giá:</strong> +${fmtVND(minIncrementVND)}</div>
-      <div><strong>Tiền cọc:</strong> ${fmtVND(depositAmountVND)}</div>
-      <div><strong>Giá hiện tại:</strong> <b>${fmtVND(currentPriceVND)}</b>${highestBidder && highestBidder !== ethers.constants.AddressZero ? ` — người dẫn: ${shorten(highestBidder)}` : ""}</div>
-      ${auctionDetailCID ? `<div><strong>CID:</strong> <a href="https://ipfs.io/ipfs/${auctionDetailCID}" target="_blank" rel="noreferrer">${auctionDetailCID}</a></div>` : ""}
+      ${auctionDetailCID ? `<div><strong>Link:</strong> <a href="${formatCidLink(auctionDetailCID)}" target="_blank" rel="noreferrer">${shortCID(auctionDetailCID)}</a></div>` : ""}
+      ${highestBidder && highestBidder !== ethers.constants.AddressZero ? `<div><strong>Giá hiện tại:</strong> <b>${fmtVND(currentPriceVND)}</b> — người dẫn: ${shorten(highestBidder)}</div>` : `<div><strong>Giá hiện tại:</strong> <b>${fmtVND(currentPriceVND)}</b></div>`}
     `;
 
     // Actions
+    const actionsWrap = node.querySelector(".auction-actions");
+    const btnJoin = actionsWrap.querySelector('[data-action="join"]');
+    const btnBack = actionsWrap.querySelector('[data-action="back"]');
     const btnWl = node.querySelector(".btn-update-whitelist");
     const btnBid = node.querySelector(".btn-bid");
 
-    // Thêm nút "Tham gia" (focus view) & "Quay lại danh sách" nếu đang focus
-    const actionsWrap = node.querySelector(".auction-actions");
-    const btnJoin = document.createElement("button");
-    btnJoin.className = "btn";
-    btnJoin.textContent = "Tham gia";
     btnJoin.onclick = () => focusAuction(id);
-    actionsWrap.prepend(btnJoin);
-
-    if (opts.showBack) {
-      const back = document.createElement("button");
-      back.className = "btn ghost";
-      back.textContent = "Quay lại danh sách";
-      back.onclick = clearFocus;
-      actionsWrap.prepend(back);
-    }
+    btnBack.onclick = clearFocus;
+    btnBack.classList.toggle("hidden", !opts.showBack);
 
     // Organizer can update whitelist before cutoff
     const now = Math.floor(Date.now()/1000);
     const organizerCanUpdate = isOrganizer && !finalized && now <= Number(depositCutoff);
     btnWl.classList.toggle("hidden", !organizerCanUpdate);
-    if (organizerCanUpdate) btnWl.onclick = () => openUpdateWhitelistModal(id);
+    if (organizerCanUpdate) btnWl.onclick = () => openUpdateWhitelistModal(id, depositCutoff);
 
     // Whitelisted user can bid only within auction time window
     const canShowBid = !!userAddr && !!canBid && status === 1 && !finalized && now >= Number(auctionStart) && now <= Number(auctionEnd);
     btnBid.classList.toggle("hidden", !canShowBid);
-    if (canShowBid) btnBid.onclick = () => openBidModal(id, currentPriceVND, minIncrementVND, auctionStart, auctionEnd);
+    if (canShowBid) btnBid.onclick = () => openBidModal(id, currentPriceVND, minIncrementVND, auctionStart, auctionEnd, startingPriceVND);
 
     node.querySelector(".auc-open-onchain").href = `${CFG.EXPLORER}/address/${CFG.AUCTION_ADDR}`;
     return node;
@@ -813,7 +670,7 @@ function modal(innerHTML){
   wrap.style.alignItems="center"; wrap.style.justifyContent="center"; wrap.style.zIndex="100";
   const box = document.createElement("div");
   box.style.background="var(--bg-card)"; box.style.border="1px solid var(--border)";
-  box.style.borderRadius="12px"; box.style.padding="16px"; box.style.minWidth="320px"; box.style.maxWidth="860px";
+  box.style.borderRadius="12px"; box.style.padding="16px"; box.style.minWidth="320px"; box.style.maxWidth="880px";
   box.style.width="96vw";
   box.style.boxShadow="0 12px 40px rgba(0,0,0,.45)";
   box.innerHTML = `
@@ -836,6 +693,8 @@ function modal(innerHTML){
 }
 
 function shorten(a){ return a ? a.slice(0,6)+"..."+a.slice(-4) : "—"; }
+function shortCID(cid){ const s=String(cid); return s.length>22 ? s.slice(0,10)+'…'+s.slice(-8) : s; }
+function formatCidLink(x){ const s=String(x).trim(); return /^https?:\/\//.test(s) ? s : `https://ipfs.io/ipfs/${s.replace(/^ipfs:\/\//,'')}`; }
 function toUnix(dt){ if(!dt) return 0; return Math.floor(new Date(dt).getTime()/1000); }
 function toBN(n){ const s=String(n||"0").trim(); return ethers.BigNumber.from(s||"0"); }
 function fmtTime(ts){ if(!ts) return "—"; return new Date(Number(ts)*1000).toLocaleString(); }
