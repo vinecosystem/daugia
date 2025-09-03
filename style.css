@@ -231,3 +231,15 @@ main{ flex:1; }
   .footer-inner .links{ display:block; }
   .footer-inner .links li{ margin-bottom:8px; }
 }
+
+/* Nội dung cuộc đấu giá (giữ xuống dòng, dễ đọc) */
+.auc-detail{
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--divider);
+}
+.auc-detail .auc-text{
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.7;
+}
