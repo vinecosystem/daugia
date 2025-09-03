@@ -1,10 +1,5 @@
 /* =============================================================
-   daugia.vin — app.js (reboot: tối giản, dễ thao tác)
-   - MetaMask / Viction (chainId 88)
-   - Balances VIC/VIN; Register (1 USD VIN); Create auction (1 USD VIN)
-   - Create form: 5 fields (as, ae, cutoff, startPrice, step, desc/link)
-   - Whitelist: organizer update trước cutoff
-   - Bid: chỉ whitelisted & trong khung thời gian; min = cur + step (hoặc start)
+   daugia.vin — app.js (revised: VN-first, content 20k, autosize)
    ============================================================= */
 
 /** ================= Config ================= **/
@@ -48,7 +43,7 @@ let readonlyProvider, provider, signer, userAddr;
 let auction, vin;
 let vinDecimals = 18;
 
-let lastVinUsd = NaN;      // USD per VIN (from VIC/USDT × 100)
+let lastVinUsd = NaN;      // USD per VIN (VIC/USDT × 100)
 let lastPriceUpdatedAt = 0;
 
 let activeAuctionId = null; // focus mode
@@ -69,7 +64,7 @@ async function bootstrap() {
 
   auction = new ethers.Contract(CFG.AUCTION_ADDR, ABIAuction, readonlyProvider);
 
-  // Price loop (independent from UI chip)
+  // Internal price loop (independent from UI chip)
   await refreshVinPriceForApp();
   setInterval(refreshVinPriceForApp, 60000);
 
@@ -79,7 +74,7 @@ async function bootstrap() {
   // Render as guest
   await renderAllAuctions();
 
-  // Auto-connect if authorized
+  // Auto-connect if already authorized
   if (window.ethereum) {
     const accs = await provider.listAccounts().catch(()=>[]);
     if (accs && accs.length) {
@@ -104,7 +99,7 @@ async function refreshVinPriceForApp() {
     const r = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT", { cache: "no-store" });
     const data = await r.json();
     const vicUsd = parseFloat(data?.price);
-    if (!isFinite(vicUsd)) throw new Error("No VIC/USDT price");
+    if (!isFinite(vicUsd)) throw new Error("Không có giá VIC/USDT");
     lastVinUsd = vicUsd * 100; // VIN/USD
     lastPriceUpdatedAt = Date.now();
   } catch (e) {
@@ -290,7 +285,7 @@ async function sendFast(txReq) {
   return await tx.wait();
 }
 
-/** ================= Register (charge 1 USD VIN) ================= **/
+/** ================= Register (1 USD VIN) ================= **/
 async function onRegisterOneUsd() {
   try {
     await ensureConnected();
@@ -305,13 +300,13 @@ async function onRegisterOneUsd() {
   }
 }
 
-/** ================= Create auction (charge 1 USD VIN) ================= **/
+/** ================= Create auction (1 USD VIN) ================= **/
 function openCreateModal() {
   ensureConnected().then(async () => {
     const registered = await auction.registeredOrganizer(userAddr).catch(()=>false);
     if (!registered) return alert("Bạn chưa đăng ký.");
 
-    // FORM TỐI GIẢN — 5 trường quan trọng
+    // FORM: tách riêng 3 và 4; mô tả 20.000 ký tự + auto-resize
     const m = modal(`
       <h3 style="margin-bottom:8px">Tạo cuộc đấu giá</h3>
 
@@ -333,11 +328,18 @@ function openCreateModal() {
       </div>
 
       <div class="card">
-        <div class="card-head"><h4>3) Giá khởi điểm & 4) Bước giá (VND)</h4></div>
+        <div class="card-head"><h4>3) Giá khởi điểm (VND)</h4></div>
         <div class="card-body">
-          <div class="row"><label for="c_sp">Giá khởi điểm (VND)</label><input id="c_sp" type="number" min="0" step="1" class="input" placeholder="vd: 5000000000" /></div>
-          <div class="row"><label for="c_step">Bước giá (VND)</label><input id="c_step" type="number" min="1" step="1" class="input" placeholder="vd: 100000000" /></div>
-          <p class="small muted">Giá người sau phải ≥ (giá hiện tại + bước giá). Lần đầu phải ≥ giá khởi điểm.</p>
+          <div class="row"><label for="c_sp">Giá khởi điểm (VND)</label><input id="c_sp" type="number" min="0" step="1" class="input" placeholder="vd: 1.200.000.000" /></div>
+          <p class="small muted">Lần bỏ giá đầu tiên phải ≥ giá khởi điểm.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h4>4) Bước giá (VND)</h4></div>
+        <div class="card-body">
+          <div class="row"><label for="c_step">Bước giá (VND)</label><input id="c_step" type="number" min="1" step="1" class="input" placeholder="vd: 10.000.000" /></div>
+          <p class="small muted">Mỗi lần tăng tối thiểu bằng bước giá.</p>
         </div>
       </div>
 
@@ -345,11 +347,11 @@ function openCreateModal() {
         <div class="card-head"><h4>5) Nội dung cuộc đấu giá</h4></div>
         <div class="card-body">
           <div class="row">
-            <label for="c_desc">Mô tả ngắn gọn</label>
-            <textarea id="c_desc" class="input" rows="6" maxlength="20000" placeholder="Mô tả tài sản, điều kiện ngoài chuỗi (tài khoản nhận cọc...), lưu ý quan trọng..."></textarea>
+            <label for="c_desc">Mô tả (tối đa 20.000 ký tự)</label>
+            <textarea id="c_desc" class="input" rows="8" maxlength="20000" placeholder="Hãy mô tả tài sản, điều kiện ngoài chuỗi (tài khoản nhận cọc...), lịch trình..."></textarea>
           </div>
           <div class="row">
-            <label for="c_cid">Link kèm theo (không bắt buộc: IPFS CID/URL, website…)</label>
+            <label for="c_cid">Liên kết kèm theo (không bắt buộc: IPFS/URL)</label>
             <input id="c_cid" class="input" placeholder="vd: ipfs://bafy... hoặc https://..." />
           </div>
         </div>
@@ -361,6 +363,12 @@ function openCreateModal() {
       </div>
     `);
 
+    // Auto-resize textarea
+    const ta = m.querySelector("#c_desc");
+    const auto = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+    ta.addEventListener('input', auto);
+    setTimeout(auto, 0);
+
     m.querySelector("#c_cancel").onclick = () => m.remove();
     m.querySelector("#c_ok").onclick = async () => {
       try {
@@ -369,24 +377,25 @@ function openCreateModal() {
         const dc = toUnix(m.querySelector("#c_dc").value);
         const sp = toBN(m.querySelector("#c_sp").value);
         const step = toBN(m.querySelector("#c_step").value);
-        let cid = (m.querySelector("#c_cid").value || "").trim();
+        const link = (m.querySelector("#c_cid").value || "").trim();
         const desc = (m.querySelector("#c_desc").value || "").trim();
 
-        // RÀNG BUỘC LOGIC THỜI GIAN
         if (!(as && ae && dc)) throw new Error("Thiếu mốc thời gian bắt buộc.");
-        if (!(as < ae)) throw new Error("Thời gian đấu giá: bắt đầu phải < kết thúc.");
-        if (!(dc <= as)) throw new Error("Hạn cập nhật ví phải trước hoặc đúng lúc bắt đầu đấu giá.");
+        if (!(as < ae)) throw new Error("Thời gian đấu giá: Bắt đầu phải < Kết thúc.");
+        if (!(dc <= as)) throw new Error("Hạn cập nhật ví phải ≤ thời điểm bắt đầu đấu giá.");
         if (step.lte(0)) throw new Error("Bước giá phải > 0.");
         if (sp.lt(0)) throw new Error("Giá khởi điểm không hợp lệ.");
 
-        // Map vào createAuction (các mốc không sử dụng set = 0)
+        // Gộp nội dung + link vào một trường string (trong ABI chỉ có 1 string)
+        let detail = desc;
+        if (link) detail += (detail ? "\n\n" : "") + link;
+
+        // Map vào createAuction (các mốc không dùng set = 0)
         const startView = 0, endView = 0, depositStart = 0;
-        let cidFinal = cid.replace(/^ipfs:\/\//, "");
-        if (!cidFinal && desc) cidFinal = desc.slice(0, 1800);
 
         await ensurePlatformFeeAllowance();
         const txReq = await auction.populateTransaction.createAuction(
-          startView, endView, depositStart, dc, as, ae, sp, step, 0, cidFinal
+          startView, endView, depositStart, dc, as, ae, sp, step, 0, detail
         );
         await sendFast(txReq);
 
@@ -401,7 +410,7 @@ function openCreateModal() {
   });
 }
 
-/** ================= Update whitelist (charge 1 USD VIN) ================= **/
+/** ================= Update whitelist (1 USD VIN) ================= **/
 function openUpdateWhitelistModal(auctionId, depositCutoff) {
   const now = Math.floor(Date.now()/1000);
   if (now > Number(depositCutoff)) {
@@ -411,7 +420,7 @@ function openUpdateWhitelistModal(auctionId, depositCutoff) {
     <h3>Cập nhật ví đã đặt cọc (#${auctionId})</h3>
     <p class="small muted">Chỉ cập nhật trước mốc "Hạn cập nhật ví".</p>
     <div class="row"><label>Địa chỉ ví (mỗi dòng 1 địa chỉ)</label><textarea id="w_addrs" class="input" rows="6" placeholder="0xabc...\n0xdef..."></textarea></div>
-    <div class="row"><label>UNC proof CIDs (tuỳ chọn; cùng số dòng)</label><textarea id="w_unc" class="input" rows="4" placeholder="cid1\ncid2"></textarea></div>
+    <div class="row"><label>UNC proof CIDs (tùy chọn; cùng số dòng)</label><textarea id="w_unc" class="input" rows="4" placeholder="cid1\ncid2"></textarea></div>
     <div class="actions">
       <button class="btn" id="w_cancel">Hủy</button>
       <button class="btn primary" id="w_ok">Cập nhật</button>
@@ -443,7 +452,7 @@ function openUpdateWhitelistModal(auctionId, depositCutoff) {
   };
 }
 
-/** ================= Place bid (charge 1 USD VIN) ================= **/
+/** ================= Place bid (1 USD VIN) ================= **/
 function openBidModal(auctionId, currentPriceVND, minIncrementVND, auctionStart, auctionEnd, startingPriceVND) {
   const now = Math.floor(Date.now()/1000);
   if (!(now >= Number(auctionStart) && now <= Number(auctionEnd))) {
@@ -520,13 +529,13 @@ async function doSearch() {
       }
       return;
     }
-    // keyword in CID
+    // keyword in detail
     const total = (await auction.totalAuctions()).toNumber();
     const found = [];
     for (let id = total; id >= 1; id--) {
       const info = await auction.getAuction(id);
-      const cid = info[14] || "";
-      if (String(cid).toLowerCase().includes(q.toLowerCase())) found.push(id);
+      const detail = info[14] || "";
+      if (String(detail).toLowerCase().includes(q.toLowerCase())) found.push(id);
     }
     wrap.innerHTML = "";
     if (!found.length) { wrap.innerHTML = `<div class="empty">Không thấy kết quả phù hợp.</div>`; return; }
@@ -573,7 +582,7 @@ async function renderOneAuctionCard(id, opts={}) {
       auctionStart, auctionEnd,
       startingPriceVND, minIncrementVND, depositAmountVND,
       currentPriceVND, highestBidder,
-      finalized, failed, auctionDetailCID
+      finalized, failed, auctionDetail
     ] = info;
 
     const status = await auction.getStatus(id);
@@ -591,15 +600,23 @@ async function renderOneAuctionCard(id, opts={}) {
     aOrg.textContent = shorten(organizer);
     aOrg.href = `${CFG.EXPLORER}/address/${organizer}`;
 
+    // Tìm link kèm theo (nếu nội dung chứa URL)
+    const firstUrl = extractFirstUrl(auctionDetail);
+
     const meta = node.querySelector(".auc-meta");
     meta.innerHTML = `
-      <div><strong>Thời gian đấu giá:</strong> ${fmtTime(auctionStart)} → <b>${fmtTime(auctionEnd)}</b> &nbsp; <span class="chip">Trạng thái: ${statusText(status, finalized, failed)}</span></div>
+      <div><strong>Thời gian đấu giá:</strong> ${fmtTime(auctionStart)} → <b>${fmtTime(auctionEnd)}</b> &nbsp; <span class="chip">Trạng thái: ${statusTextVN(status, finalized, failed)}</span></div>
       <div><strong>Hạn cập nhật ví:</strong> <b>${fmtTime(depositCutoff)}</b></div>
       <div><strong>Giá khởi điểm:</strong> <b>${fmtVND(startingPriceVND)}</b></div>
       <div><strong>Bước giá:</strong> +${fmtVND(minIncrementVND)}</div>
-      ${auctionDetailCID ? `<div><strong>Link:</strong> <a href="${formatCidLink(auctionDetailCID)}" target="_blank" rel="noreferrer">${shortCID(auctionDetailCID)}</a></div>` : ""}
+      ${firstUrl ? `<div><strong>Liên kết kèm theo:</strong> <a href="${firstUrl}" target="_blank" rel="noreferrer">${shortCID(firstUrl)}</a></div>` : ""}
       ${highestBidder && highestBidder !== ethers.constants.AddressZero ? `<div><strong>Giá hiện tại:</strong> <b>${fmtVND(currentPriceVND)}</b> — người dẫn: ${shorten(highestBidder)}</div>` : `<div><strong>Giá hiện tại:</strong> <b>${fmtVND(currentPriceVND)}</b></div>`}
     `;
+
+    // Nội dung (hiển thị đầy đủ, giữ xuống dòng)
+    const detailWrap = node.querySelector(".auc-detail");
+    const safeHtml = linkify(escapeHtml(String(auctionDetail || "")));
+    detailWrap.innerHTML = `<div class="auc-text">${safeHtml}</div>`;
 
     // Actions
     const actionsWrap = node.querySelector(".auction-actions");
@@ -612,18 +629,20 @@ async function renderOneAuctionCard(id, opts={}) {
     btnBack.onclick = clearFocus;
     btnBack.classList.toggle("hidden", !opts.showBack);
 
-    // Organizer can update whitelist before cutoff
+    // Organizer có thể cập nhật whitelist trước cutoff
     const now = Math.floor(Date.now()/1000);
     const organizerCanUpdate = isOrganizer && !finalized && now <= Number(depositCutoff);
     btnWl.classList.toggle("hidden", !organizerCanUpdate);
     if (organizerCanUpdate) btnWl.onclick = () => openUpdateWhitelistModal(id, depositCutoff);
 
-    // Whitelisted user can bid only within auction time window
+    // Người trong whitelist mới được bỏ giá + trong khung giờ
     const canShowBid = !!userAddr && !!canBid && status === 1 && !finalized && now >= Number(auctionStart) && now <= Number(auctionEnd);
     btnBid.classList.toggle("hidden", !canShowBid);
     if (canShowBid) btnBid.onclick = () => openBidModal(id, currentPriceVND, minIncrementVND, auctionStart, auctionEnd, startingPriceVND);
 
+    node.querySelector(".auc-open-onchain").textContent = "Mở trên VicScan";
     node.querySelector(".auc-open-onchain").href = `${CFG.EXPLORER}/address/${CFG.AUCTION_ADDR}`;
+
     return node;
   } catch (e) {
     console.error("renderOneAuctionCard", id, e);
@@ -702,10 +721,37 @@ function modal(innerHTML){
 
 function shorten(a){ return a ? a.slice(0,6)+"..."+a.slice(-4) : "—"; }
 function shortCID(cid){ const s=String(cid); return s.length>22 ? s.slice(0,10)+'…'+s.slice(-8) : s; }
-function formatCidLink(x){ const s=String(x).trim(); return /^https?:\/\//.test(s) ? s : `https://ipfs.io/ipfs/${s.replace(/^ipfs:\/\//,'')}`; }
+function extractFirstUrl(text){
+  const m = String(text||"").match(/(https?:\/\/[^\s]+|ipfs:\/\/[^\s]+|ipfs\.[^\s]+\/[^\s]+)/i);
+  return m ? (m[0].startsWith("ipfs://") ? `https://ipfs.io/ipfs/${m[0].replace(/^ipfs:\/\//,'')}` : m[0]) : "";
+}
+function linkify(html){
+  // biến URL thuần trong text thành link <a>
+  return html.replace(/(https?:\/\/[^\s<]+|ipfs:\/\/[^\s<]+)/gi, (u)=>{
+    const href = u.startsWith("ipfs://") ? `https://ipfs.io/ipfs/${u.replace(/^ipfs:\/\//,'')}` : u;
+    return `<a href="${href}" target="_blank" rel="noreferrer">${u}</a>`;
+  });
+}
+function formatCidLink(x){
+  const s=String(x).trim();
+  return /^https?:\/\//.test(s) ? s : `https://ipfs.io/ipfs/${s.replace(/^ipfs:\/\//,'')}`;
+}
 function toUnix(dt){ if(!dt) return 0; return Math.floor(new Date(dt).getTime()/1000); }
 function toBN(n){ const s=String(n||"0").trim(); return ethers.BigNumber.from(s||"0"); }
-function fmtTime(ts){ if(!ts) return "—"; return new Date(Number(ts)*1000).toLocaleString(); }
+function fmtTime(ts){
+  if(!ts) return "—";
+  const d = new Date(Number(ts)*1000);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+}
 function fmtVND(x){ try{ const n=ethers.BigNumber.from(x).toString(); return Number(n).toLocaleString("vi-VN")+" VND"; }catch{return String(x)+" VND";} }
-function statusText(s,fin,fail){ const m={0:"PENDING",1:"ACTIVE",2:"ENDED",3:"FINALIZED",4:"FAILED"}; if(fin) return fail?"FAILED":"FINALIZED"; return m[s]??"UNKNOWN"; }
+function statusTextVN(s,fin,fail){
+  if (fin) return fail ? "THẤT BẠI" : "ĐÃ CHỐT";
+  const m={0:"CHỜ",1:"ĐANG DIỄN RA",2:"ĐÃ KẾT THÚC",3:"ĐÃ CHỐT",4:"THẤT BẠI"};
+  return m[s] ?? "KHÔNG RÕ";
+}
 function escapeHtml(str){ return String(str).replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
