@@ -2,35 +2,22 @@
 <html lang="vi">
 <head>
   <!-- =========================================================
-       daugia.vin — index.html (chuẩn, 1 CTA duy nhất)
+       daugia.vin — index.html (v3 - tối giản, dễ dùng)
        - Header: Logo + slogan + Kết nối/Ngắt kết nối
        - Toolbar: Ô tìm kiếm + nút Tìm + chip Giá VIN (VIC/USDT * 100) + CTA (Đăng ký/Tạo phiên)
-       - Wallet panel: chỉ thông tin ví & số dư (KHÔNG chứa nút tạo phiên)
+       - Wallet panel: chỉ thông tin ví & số dư
        - Main: danh sách phiên
-       - Footer: các liên kết nhanh xếp ngang (desktop) / dọc (mobile)
+       - Footer: liên kết nhanh (Hướng dẫn, Swap, Hợp đồng, VIN Token)
      ========================================================== -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>daugia.vin — Đấu giá minh bạch trên Blockchain</title>
-  <meta name="description" content="daugia.vin — Đấu giá minh bạch trên blockchain Viction (VIC). Mọi thao tác on-chain, công khai." />
+  <meta name="description" content="daugia.vin — Nền tảng tạo và tham gia đấu giá minh bạch trên blockchain Viction (VIC). Chỉ ví đã cọc (được whitelist) mới có thể bỏ giá trong thời gian quy định." />
   <link rel="icon" type="image/png" href="vin64.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
-  <style>
-    /* Một vài tweak nhỏ để khớp layout */
-    .toolbar { display:grid; grid-template-columns:1fr auto auto; gap:12px; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border); background:var(--bg-card); }
-    .toolbar .search { display:grid; grid-template-columns:1fr auto; gap:8px; }
-    .wallet-panel { display:none; background:var(--bg-card); border-bottom:1px solid var(--border); padding:12px 20px; }
-    .wallet-panel .grid { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:10px; align-items:center; }
-    .actions-auth { display:flex; gap:8px; justify-content:flex-end; }
-    .hidden { display:none !important; }
-    @media (max-width:768px){
-      .toolbar { grid-template-columns:1fr; }
-      .wallet-panel .grid { grid-template-columns:1fr; }
-    }
-  </style>
 </head>
 
 <body>
@@ -49,31 +36,30 @@
     </div>
   </header>
 
-  <!-- =============== Toolbar: Tìm kiếm + Giá VIN + CTA duy nhất =============== -->
+  <!-- =============== Toolbar: Tìm kiếm + Giá VIN + CTA =============== -->
   <section class="toolbar">
     <div class="search">
-      <input id="searchQuery" class="input" type="text" placeholder="Tìm theo tiêu đề/địa chỉ/ID/organizer…" />
+      <input id="searchQuery" class="input" type="text" placeholder="Tìm theo ID / địa chỉ ví organizer / từ khóa…" />
       <button id="btnSearch" class="btn">Tìm</button>
     </div>
 
-    <!-- Giá VIN theo USD (chỉ để hiển thị) -->
+    <!-- Giá VIN theo USD (UI ONLY) -->
     <div class="chip">1 VIN ≈ <strong id="vinUsdValueMini">—</strong> USD</div>
 
-    <!-- CTA duy nhất: Đăng ký (chưa đăng ký) / Tạo cuộc đấu giá (đã đăng ký) -->
+    <!-- CTA: Đăng ký (chưa đăng ký) / Tạo cuộc đấu giá (đã đăng ký) -->
     <div class="actions-auth">
       <button id="btnRegister" class="btn hidden">Đăng ký</button>
       <button id="btnCreateAuction" class="btn primary hidden">Tạo cuộc đấu giá</button>
     </div>
   </section>
 
-  <!-- =============== Wallet panel: KHÔNG có nút tạo phiên =============== -->
-  <section id="walletPanel" class="wallet-panel">
+  <!-- =============== Wallet panel =============== -->
+  <section id="walletPanel" class="wallet-panel" style="display:none">
     <div class="grid">
       <div><strong>Ví:</strong> <span id="accountShort">—</span></div>
       <div><strong>Số dư VIC:</strong> <span id="vicBalance">—</span></div>
       <div><strong>Số dư VIN:</strong> <span id="vinBalance">—</span></div>
       <div class="actions-auth">
-        <!-- Chủ ý: không để nút tạo phiên ở đây để tránh trùng CTA -->
         <a id="linkVicScan" class="btn ghost" href="#" target="_blank" rel="noreferrer">Xem ví trên VicScan</a>
       </div>
     </div>
@@ -96,10 +82,10 @@
       <div class="footer-col">
         <h4>Liên kết nhanh</h4>
         <ul class="links">
-          <li><a id="lnkGuideBottom" href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" rel="noreferrer">📘 Hướng dẫn</a></li>
+          <li><a id="lnkGuideBottom" href="#" rel="noreferrer">📘 Hướng dẫn</a></li>
           <li><a id="lnkSwap" href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noreferrer">🔁 Swap VIN/VIC</a></li>
-          <li><a id="lnkAuctionContract" href="https://www.vicscan.xyz/address/0x1765e20ecB8cD78688417A6d4123f2b899775599" target="_blank" rel="noreferrer">📜 Hợp đồng đấu giá</a></li>
-          <li><a id="lnkVinToken" href="https://www.vicscan.xyz/token/0x941F63807401efCE8afe3C9d88d368bAA287Fac4" target="_blank" rel="noreferrer">💠 VIN Token</a></li>
+          <li><a id="lnkAuctionContract" href="#" target="_blank" rel="noreferrer">📜 Hợp đồng đấu giá</a></li>
+          <li><a id="lnkVinToken" href="#" target="_blank" rel="noreferrer">💠 VIN Token</a></li>
         </ul>
       </div>
     </div>
@@ -109,7 +95,7 @@
   <template id="tpl-auction-card">
     <div class="card">
       <div class="card-head">
-        <h4 class="auc-title">Tiêu đề tài sản</h4>
+        <h4 class="auc-title">Cuộc đấu giá</h4>
         <p class="muted small">
           ID <span class="auc-id">#0</span> • Organizer:
           <a class="auc-organizer" href="#" target="_blank" rel="noreferrer">0x…</a>
@@ -119,8 +105,10 @@
         <div class="auc-meta"></div>
         <div class="auc-detail"></div>
         <div class="auction-actions">
+          <button class="btn" data-action="join">Tham gia</button>
           <button class="btn ghost btn-update-whitelist hidden" data-auction-id="">Cập nhật ví đã cọc</button>
           <button class="btn btn-bid hidden" data-auction-id="">Bỏ giá</button>
+          <button class="btn ghost hidden" data-action="back">Quay lại danh sách</button>
         </div>
       </div>
       <div class="card-foot">
@@ -149,7 +137,7 @@
     })();
 
     // ===== Giá VIN theo USD (UI ONLY): VIC/USDT * 100
-    async function updateVinPrice() {
+    async function updateVinPriceUI() {
       try {
         const r = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT");
         const data = await r.json();
@@ -163,9 +151,8 @@
         document.getElementById("vinUsdValueMini").textContent = "—";
       }
     }
-    updateVinPrice();
-    // Có thể bật auto-refresh 60s nếu cần:
-    // setInterval(updateVinPrice, 60000);
+    updateVinPriceUI();
+    // setInterval(updateVinPriceUI, 60000);
 
     // ===== Sự kiện đẩy sang app.js =====
     document.getElementById('btnSearch').addEventListener('click', () => {
