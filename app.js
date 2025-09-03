@@ -1,10 +1,10 @@
 /* =============================================================
-   daugia.vin — app.js (v3 minimalist)
+   daugia.vin — app.js (reboot: tối giản, dễ thao tác)
    - MetaMask / Viction (chainId 88)
-   - Balances VIC/VIN, register (1 USD VIN), create auction (1 USD VIN)
-   - Create form: 5 fields (from-to, cutoff, startPrice, step, content+link)
-   - Whitelist can be updated only before cutoff
-   - Bid visible only for whitelisted & within auction time; min = cur + step
+   - Balances VIC/VIN; Register (1 USD VIN); Create auction (1 USD VIN)
+   - Create form: 5 fields (as, ae, cutoff, startPrice, step, desc/link)
+   - Whitelist: organizer update trước cutoff
+   - Bid: chỉ whitelisted & trong khung thời gian; min = cur + step (hoặc start)
    ============================================================= */
 
 /** ================= Config ================= **/
@@ -69,7 +69,7 @@ async function bootstrap() {
 
   auction = new ethers.Contract(CFG.AUCTION_ADDR, ABIAuction, readonlyProvider);
 
-  // Internal price loop (independent from UI chip)
+  // Price loop (independent from UI chip)
   await refreshVinPriceForApp();
   setInterval(refreshVinPriceForApp, 60000);
 
@@ -79,7 +79,7 @@ async function bootstrap() {
   // Render as guest
   await renderAllAuctions();
 
-  // Auto-connect if site already authorized
+  // Auto-connect if authorized
   if (window.ethereum) {
     const accs = await provider.listAccounts().catch(()=>[]);
     if (accs && accs.length) {
@@ -213,7 +213,6 @@ function handleWalletStateUI(ev) {
   const linkVicScan = document.getElementById("linkVicScan");
   const vicBalance = document.getElementById("vicBalance");
   const vinBalance = document.getElementById("vinBalance");
-
   const btnRegister = document.getElementById("btnRegister");
   const btnCreate = document.getElementById("btnCreateAuction");
 
@@ -314,13 +313,13 @@ function openCreateModal() {
 
     // FORM TỐI GIẢN — 5 trường quan trọng
     const m = modal(`
-      <h3 style="margin-bottom:8px">Tạo cuộc đấu giá (tối giản)</h3>
+      <h3 style="margin-bottom:8px">Tạo cuộc đấu giá</h3>
 
       <div class="card">
         <div class="card-head"><h4>1) Thời gian đấu giá</h4></div>
         <div class="card-body">
-          <div class="row"><label for="c_as">Bắt đầu</label><input id="c_as" type="datetime-local" class="input"></div>
-          <div class="row"><label for="c_ae">Kết thúc</label><input id="c_ae" type="datetime-local" class="input"></div>
+          <div class="row"><label for="c_as">Bắt đầu</label><input id="c_as" type="datetime-local" class="input" /></div>
+          <div class="row"><label for="c_ae">Kết thúc</label><input id="c_ae" type="datetime-local" class="input" /></div>
           <p class="small muted">Chỉ trong khoảng này người được whitelist mới thấy nút <b>Bỏ giá</b>.</p>
         </div>
       </div>
@@ -328,7 +327,7 @@ function openCreateModal() {
       <div class="card">
         <div class="card-head"><h4>2) Hạn cập nhật ví đã đặt cọc</h4></div>
         <div class="card-body">
-          <div class="row"><label for="c_dc">Hạn cuối</label><input id="c_dc" type="datetime-local" class="input"></div>
+          <div class="row"><label for="c_dc">Hạn cuối</label><input id="c_dc" type="datetime-local" class="input" /></div>
           <p class="small muted">Sau mốc này organizer không thể thêm ví vào whitelist.</p>
         </div>
       </div>
@@ -336,8 +335,8 @@ function openCreateModal() {
       <div class="card">
         <div class="card-head"><h4>3) Giá khởi điểm & 4) Bước giá (VND)</h4></div>
         <div class="card-body">
-          <div class="row"><label for="c_sp">Giá khởi điểm (VND)</label><input id="c_sp" type="number" min="0" step="1" class="input" placeholder="vd: 5000000000"></div>
-          <div class="row"><label for="c_step">Bước giá (VND)</label><input id="c_step" type="number" min="1" step="1" class="input" placeholder="vd: 100000000"></div>
+          <div class="row"><label for="c_sp">Giá khởi điểm (VND)</label><input id="c_sp" type="number" min="0" step="1" class="input" placeholder="vd: 5000000000" /></div>
+          <div class="row"><label for="c_step">Bước giá (VND)</label><input id="c_step" type="number" min="1" step="1" class="input" placeholder="vd: 100000000" /></div>
           <p class="small muted">Giá người sau phải ≥ (giá hiện tại + bước giá). Lần đầu phải ≥ giá khởi điểm.</p>
         </div>
       </div>
@@ -351,7 +350,7 @@ function openCreateModal() {
           </div>
           <div class="row">
             <label for="c_cid">Link kèm theo (không bắt buộc: IPFS CID/URL, website…)</label>
-            <input id="c_cid" class="input" placeholder="vd: ipfs://bafy... hoặc https://...">
+            <input id="c_cid" class="input" placeholder="vd: ipfs://bafy... hoặc https://..." />
           </div>
         </div>
       </div>
@@ -374,28 +373,18 @@ function openCreateModal() {
         const desc = (m.querySelector("#c_desc").value || "").trim();
 
         // RÀNG BUỘC LOGIC THỜI GIAN
-        // - as < ae
-        // - dc <= as
         if (!(as && ae && dc)) throw new Error("Thiếu mốc thời gian bắt buộc.");
         if (!(as < ae)) throw new Error("Thời gian đấu giá: bắt đầu phải < kết thúc.");
         if (!(dc <= as)) throw new Error("Hạn cập nhật ví phải trước hoặc đúng lúc bắt đầu đấu giá.");
         if (step.lte(0)) throw new Error("Bước giá phải > 0.");
         if (sp.lt(0)) throw new Error("Giá khởi điểm không hợp lệ.");
 
-        // Map form tối giản vào createAuction:
-        // startView,endView,depositStart,depositCutoff,auctionStart,auctionEnd,startingPriceVND,minIncrementVND,depositAmountVND,detailCID
-        // Với phiên bản tối giản: không dùng khung xem & thời gian nộp cọc → set = 0.
+        // Map vào createAuction (các mốc không sử dụng set = 0)
         const startView = 0, endView = 0, depositStart = 0;
         let cidFinal = cid.replace(/^ipfs:\/\//, "");
-        if (!cidFinal && desc) {
-          // Nếu không có CID, nhét tạm mô tả ngắn vào CID field (tùy backend).
-          // Khuyến nghị: sau này đổi sang lưu desc riêng hoặc upload IPFS ngoài chuỗi.
-          cidFinal = desc.slice(0, 1800);
-        }
+        if (!cidFinal && desc) cidFinal = desc.slice(0, 1800);
 
-        // Thu phí 1 USD VIN
         await ensurePlatformFeeAllowance();
-
         const txReq = await auction.populateTransaction.createAuction(
           startView, endView, depositStart, dc, as, ae, sp, step, 0, cidFinal
         );
@@ -531,7 +520,7 @@ async function doSearch() {
       }
       return;
     }
-    // keyword: naive match in CID
+    // keyword in CID
     const total = (await auction.totalAuctions()).toNumber();
     const found = [];
     for (let id = total; id >= 1; id--) {
@@ -664,31 +653,50 @@ async function openGuide() {
 async function ensureConnected(){ if (!signer || !userAddr) await connectWallet(); }
 
 function modal(innerHTML){
+  // backdrop
   const wrap = document.createElement("div");
-  wrap.className="__modal"; wrap.style.position="fixed"; wrap.style.inset="0";
-  wrap.style.background="rgba(0,0,0,.5)"; wrap.style.display="flex";
-  wrap.style.alignItems="center"; wrap.style.justifyContent="center"; wrap.style.zIndex="100";
-  const box = document.createElement("div");
-  box.style.background="var(--bg-card)"; box.style.border="1px solid var(--border)";
-  box.style.borderRadius="12px"; box.style.padding="16px"; box.style.minWidth="320px"; box.style.maxWidth="880px";
-  box.style.width="96vw";
-  box.style.boxShadow="0 12px 40px rgba(0,0,0,.45)";
-  box.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:12px">${innerHTML}</div>
-    <style>
-      .row{display:block;margin-bottom:12px}
-      input,textarea{padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text)}
-      textarea{white-space:pre-wrap}
-      .actions{display:flex;gap:8px;justify-content:flex-end}
-      .card{border:1px solid var(--border);border-radius:12px;background:var(--bg);overflow:hidden}
-      .card-head{padding:10px 12px;border-bottom:1px solid var(--border);font-weight:700}
-      .card-body{padding:12px}
-      .small{font-size:.9rem}
-      .muted{color:#9ca3af}
-    </style>`;
-  wrap.appendChild(box);
-  wrap.addEventListener("click",(e)=>{ if(e.target===wrap) wrap.remove(); });
+  wrap.className="__modal";
+  wrap.innerHTML = `
+    <div class="__modal-backdrop"></div>
+    <div class="__modal-box">
+      <div class="__modal-inner">
+        ${innerHTML}
+      </div>
+    </div>
+  `;
   document.body.appendChild(wrap);
+
+  // lock body scroll
+  document.documentElement.style.overflow = "hidden";
+  document.body.style.overflow = "hidden";
+
+  // close when click backdrop
+  const backdrop = wrap.querySelector(".__modal-backdrop");
+  backdrop.addEventListener("click", () => closeModal());
+
+  // close helper
+  function closeModal(){
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+    wrap.remove();
+  }
+  // expose remove for callers
+  wrap.remove = closeModal;
+
+  // focus first input
+  setTimeout(() => {
+    const firstInput = wrap.querySelector("input, textarea, select, button");
+    if (firstInput) firstInput.focus({ preventScroll: false });
+  }, 50);
+
+  // ESC to close
+  window.addEventListener("keydown", function esc(e){
+    if (e.key === "Escape"){
+      closeModal();
+      window.removeEventListener("keydown", esc);
+    }
+  });
+
   return wrap;
 }
 
