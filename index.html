@@ -2,14 +2,12 @@
 <html lang="vi">
 <head>
   <!-- =========================================================
-       daugia.vin — index.html (tối giản theo yêu cầu)
-       - Header: Logo + slogan + chỉ có nút Kết nối ví
-       - Toolbar: Ô tìm kiếm + nút Tìm + chip Giá VIN (VIC/USDT * 100)
-       - Khi kết nối ví:
-         * Nếu chưa đăng ký: hiện nút Đăng ký
-         * Nếu đã đăng ký: hiện nút Tạo cuộc đấu giá
-       - Main: chỉ hiển thị danh sách phiên (không mô tả thừa)
-       - Footer: chỉ các link Hướng dẫn, Swap, Hợp đồng, VIN Token
+       daugia.vin — index.html (chuẩn, 1 CTA duy nhất)
+       - Header: Logo + slogan + Kết nối/Ngắt kết nối
+       - Toolbar: Ô tìm kiếm + nút Tìm + chip Giá VIN (VIC/USDT * 100) + CTA (Đăng ký/Tạo phiên)
+       - Wallet panel: chỉ thông tin ví & số dư (KHÔNG chứa nút tạo phiên)
+       - Main: danh sách phiên
+       - Footer: các liên kết nhanh xếp ngang (desktop) / dọc (mobile)
      ========================================================== -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -21,34 +19,22 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* Chỉnh nhỏ để bám đúng layout mới */
-    .toolbar {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 12px;
-      align-items: center;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg-card);
-    }
-    .toolbar .search {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-    }
-    .wallet-panel { display: none; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 20px; }
-    .wallet-panel .grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: center; }
-    .actions-auth { display: flex; gap: 8px; justify-content: flex-end; }
-    .hidden { display: none !important; }
-    @media (max-width: 768px){
-      .toolbar { grid-template-columns: 1fr; }
-      .wallet-panel .grid { grid-template-columns: 1fr; }
+    /* Một vài tweak nhỏ để khớp layout */
+    .toolbar { display:grid; grid-template-columns:1fr auto auto; gap:12px; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border); background:var(--bg-card); }
+    .toolbar .search { display:grid; grid-template-columns:1fr auto; gap:8px; }
+    .wallet-panel { display:none; background:var(--bg-card); border-bottom:1px solid var(--border); padding:12px 20px; }
+    .wallet-panel .grid { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:10px; align-items:center; }
+    .actions-auth { display:flex; gap:8px; justify-content:flex-end; }
+    .hidden { display:none !important; }
+    @media (max-width:768px){
+      .toolbar { grid-template-columns:1fr; }
+      .wallet-panel .grid { grid-template-columns:1fr; }
     }
   </style>
 </head>
 
 <body>
-  <!-- =============== Header: Logo + slogan + Kết nối ví =============== -->
+  <!-- =============== Header =============== -->
   <header class="nav">
     <div class="nav-left">
       <img id="logo-main" src="vin128.png" alt="daugia.vin logo" />
@@ -58,43 +44,42 @@
       </div>
     </div>
     <div class="nav-right">
-      <!-- Chỉ giữ nút kết nối ví -->
       <button id="btnConnect" class="btn primary">Kết nối ví</button>
       <button id="btnDisconnect" class="btn hidden">Ngắt kết nối</button>
     </div>
   </header>
 
-  <!-- =============== Toolbar: Tìm kiếm + Giá VIN (bên phải nút Tìm) + Đăng ký/Tạo =============== -->
+  <!-- =============== Toolbar: Tìm kiếm + Giá VIN + CTA duy nhất =============== -->
   <section class="toolbar">
     <div class="search">
       <input id="searchQuery" class="input" type="text" placeholder="Tìm theo tiêu đề/địa chỉ/ID/organizer…" />
       <button id="btnSearch" class="btn">Tìm</button>
     </div>
 
-    <!-- Giá VIN theo USD (VIC/USDT * 100) — hiển thị bên phải nút Tìm -->
+    <!-- Giá VIN theo USD (chỉ để hiển thị) -->
     <div class="chip">1 VIN ≈ <strong id="vinUsdValueMini">—</strong> USD</div>
 
-    <!-- Nút Đăng ký / Tạo phiên (tùy trạng thái, app.js điều khiển) -->
+    <!-- CTA duy nhất: Đăng ký (chưa đăng ký) / Tạo cuộc đấu giá (đã đăng ký) -->
     <div class="actions-auth">
       <button id="btnRegister" class="btn hidden">Đăng ký</button>
       <button id="btnCreateAuction" class="btn primary hidden">Tạo cuộc đấu giá</button>
     </div>
   </section>
 
-  <!-- =============== Panel ví (chỉ hiện khi đã kết nối) =============== -->
+  <!-- =============== Wallet panel: KHÔNG có nút tạo phiên =============== -->
   <section id="walletPanel" class="wallet-panel">
     <div class="grid">
       <div><strong>Ví:</strong> <span id="accountShort">—</span></div>
       <div><strong>Số dư VIC:</strong> <span id="vicBalance">—</span></div>
       <div><strong>Số dư VIN:</strong> <span id="vinBalance">—</span></div>
       <div class="actions-auth">
-        <button id="btnCreateAuction2" class="btn primary hidden">Tạo cuộc đấu giá</button>
+        <!-- Chủ ý: không để nút tạo phiên ở đây để tránh trùng CTA -->
+        <a id="linkVicScan" class="btn ghost" href="#" target="_blank" rel="noreferrer">Xem ví trên VicScan</a>
       </div>
     </div>
-    <div class="small"><a id="linkVicScan" class="muted" href="#" target="_blank" rel="noreferrer">Xem ví trên VicScan</a></div>
   </section>
 
-  <!-- =============== Main: Chỉ danh sách cuộc đấu giá (không mô tả thừa) =============== -->
+  <!-- =============== Main: Danh sách phiên =============== -->
   <main class="container">
     <section class="card">
       <div class="card-body">
@@ -105,10 +90,11 @@
     </section>
   </main>
 
-  <!-- =============== Footer: Chỉ các liên kết nhanh =============== -->
+  <!-- =============== Footer: Liên kết nhanh =============== -->
   <footer class="footer">
     <div class="footer-inner">
       <div class="footer-col">
+        <h4>Liên kết nhanh</h4>
         <ul class="links">
           <li><a id="lnkGuideBottom" href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" rel="noreferrer">📘 Hướng dẫn</a></li>
           <li><a id="lnkSwap" href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noreferrer">🔁 Swap VIN/VIC</a></li>
@@ -155,15 +141,14 @@
       VIN_ADDR: "0x941F63807401efCE8afe3C9d88d368bAA287Fac4"
     };
 
-    // Set link cố định ở footer
+    // Cập nhật link cố định ở footer theo config
     (function initLinks(){
       const { EXPLORER, AUCTION_ADDR, VIN_ADDR } = window.DGV_CONFIG;
       document.getElementById('lnkAuctionContract').href = `${EXPLORER}/address/${AUCTION_ADDR}`;
       document.getElementById('lnkVinToken').href       = `${EXPLORER}/address/${VIN_ADDR}`;
     })();
 
-    // ===== Giá VIN theo USD (code ngay trong index.html):
-    // Lấy VIC/USDT trên Binance, rồi *100 để ra VIN/USD theo yêu cầu.
+    // ===== Giá VIN theo USD (UI ONLY): VIC/USDT * 100
     async function updateVinPrice() {
       try {
         const r = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT");
@@ -172,17 +157,17 @@
         if (!isFinite(vicUsd)) throw new Error("No VIC price");
         const vinUsd = vicUsd * 100;
         document.getElementById("vinUsdValueMini").textContent = vinUsd.toFixed(2);
-        // thông báo cho app.js (nếu cần dùng)
+        // phát sự kiện cho phần khác nếu muốn nghe
         window.dispatchEvent(new CustomEvent("vin-price", { detail: { priceUsd: vinUsd } }));
-      } catch (e) {
+      } catch {
         document.getElementById("vinUsdValueMini").textContent = "—";
       }
     }
     updateVinPrice();
-    // Có thể lặp lại mỗi 60s nếu muốn tự làm mới:
+    // Có thể bật auto-refresh 60s nếu cần:
     // setInterval(updateVinPrice, 60000);
 
-    // ===== Sự kiện cho app.js =====
+    // ===== Sự kiện đẩy sang app.js =====
     document.getElementById('btnSearch').addEventListener('click', () => {
       window.dispatchEvent(new CustomEvent('do-search'));
     });
@@ -190,9 +175,6 @@
       window.dispatchEvent(new CustomEvent('do-register'));
     });
     document.getElementById('btnCreateAuction').addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('open-create'));
-    });
-    document.getElementById('btnCreateAuction2').addEventListener('click', () => {
       window.dispatchEvent(new CustomEvent('open-create'));
     });
     document.getElementById('btnConnect').addEventListener('click', () => {
