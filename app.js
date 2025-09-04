@@ -1,395 +1,503 @@
-// app.js
-(() => {
-  // ====== HẰNG SỐ MẠNG & HỢP ĐỒNG ======
-  const CONTRACT_ADDR = "0x44DeC3CBdF3448F05f082050aBC9697d8224f511";
-  const VIN_ADDR      = "0x941F63807401efCE8afe3C9d88d368bAA287Fac4"; // 18 decimals
-  const CHAIN_ID_HEX  = "0x58"; // 88
-  const CHAIN_PARAMS  = {
+/* ==========================================================================
+   daugia.vin — app.js (ethers v5, kết nối ví mượt, ABI tối giản nhúng sẵn)
+   Hợp đồng DauGia @ 0x44DeC3CBdF3448F05f082050aBC9697d8224f511
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  /* -------------------- Cấu hình mạng / địa chỉ -------------------- */
+  const RPC_URL = "https://rpc.viction.xyz";
+  const CHAIN_ID_HEX = "0x58"; // 88
+  const CHAIN_INFO = {
     chainId: CHAIN_ID_HEX,
     chainName: "Viction Mainnet",
     nativeCurrency: { name: "VIC", symbol: "VIC", decimals: 18 },
-    rpcUrls: ["https://rpc.viction.xyz"],
-    blockExplorerUrls: ["https://vicscan.xyz"]
+    rpcUrls: [RPC_URL],
+    blockExplorerUrls: ["https://vicscan.xyz"],
   };
 
-  // Phí nền tảng 0.001 VIN
-  const FEE_VIN = ethers.parseUnits("0.001", 18);
-
-  // ERC20 ABI tối thiểu
-  const ERC20_ABI = [
+  const DG_ADDR  = "0x44DeC3CBdF3448F05f082050aBC9697d8224f511";
+  const VIN_ADDR = "0x941F63807401efCE8afe3C9d88d368bAA287Fac4";
+  const ERC20_MIN_ABI = [
     "function decimals() view returns (uint8)",
     "function balanceOf(address) view returns (uint256)",
     "function allowance(address,address) view returns (uint256)",
     "function approve(address,uint256) returns (bool)"
   ];
 
-  // ABI rút gọn theo hợp đồng triển khai
+  // === ABI TỐI GIẢN CHO DAP ===
   const DG_ABI = [
-    "function VIN() view returns (address)",
-    "function FEE() view returns (uint256)",
-    "function feeReceiver() view returns (address)",
-
-    "function auctionCount() view returns (uint256)",
-    "function getAuction(uint256 id) view returns (tuple(address organizer,string summary,string thongBaoUrl,string quiCheUrl,uint40 whitelistCutoff,uint40 auctionStart,uint40 auctionEnd,uint128 startPriceVND,uint128 stepVND,uint128 currentPriceVND,address currentLeader,bool finalized,bool success))",
-    "function getWhitelist(uint256 id) view returns (address[])",
-    "function getStatus(uint256 id) view returns (uint8)",
-    "function getMinNextBid(uint256 id) view returns (uint128)",
-
-    "function isRegistered(address) view returns (bool)",
-    "function isWhitelisted(uint256 id,address user) view returns (bool)",
-
-    "function register()",
-    "function createAuction((string summary,string thongBaoUrl,string quiCheUrl,uint40 whitelistCutoff,uint40 auctionStart,uint40 auctionEnd,uint128 startPriceVND,uint128 stepVND) a) returns (uint256 id)",
-    "function updateWhitelist(uint256 id,address[] addrs,address[] removes)",
-    "function placeBid(uint256 id,uint128 amountVND)",
-    "function finalize(uint256 id)"
+    { "inputs": [], "name": "auctionCount", "outputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ], "stateMutability": "view", "type": "function" },
+    { "inputs": [ { "components": [
+        { "internalType": "string",  "name": "summary",         "type": "string"  },
+        { "internalType": "string",  "name": "thongBaoUrl",     "type": "string"  },
+        { "internalType": "string",  "name": "quiCheUrl",       "type": "string"  },
+        { "internalType": "uint40",  "name": "whitelistCutoff", "type": "uint40"  },
+        { "internalType": "uint40",  "name": "auctionStart",    "type": "uint40"  },
+        { "internalType": "uint40",  "name": "auctionEnd",      "type": "uint40"  },
+        { "internalType": "uint128", "name": "startPriceVND",   "type": "uint128" },
+        { "internalType": "uint128", "name": "stepVND",         "type": "uint128" }
+      ], "internalType": "struct DauGia.AuctionInit", "name": "a", "type": "tuple" } ],
+      "name": "createAuction", "outputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" } ],
+      "stateMutability": "nonpayable", "type": "function"
+    },
+    { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" } ],
+      "name": "getAuction",
+      "outputs": [ { "components": [
+          { "internalType": "address", "name": "organizer",       "type": "address" },
+          { "internalType": "string",  "name": "summary",         "type": "string"  },
+          { "internalType": "string",  "name": "thongBaoUrl",     "type": "string"  },
+          { "internalType": "string",  "name": "quiCheUrl",       "type": "string"  },
+          { "internalType": "uint40",  "name": "whitelistCutoff", "type": "uint40"  },
+          { "internalType": "uint40",  "name": "auctionStart",    "type": "uint40"  },
+          { "internalType": "uint40",  "name": "auctionEnd",      "type": "uint40"  },
+          { "internalType": "uint128", "name": "startPriceVND",   "type": "uint128" },
+          { "internalType": "uint128", "name": "stepVND",         "type": "uint128" },
+          { "internalType": "uint128", "name": "currentPriceVND", "type": "uint128" },
+          { "internalType": "address", "name": "currentLeader",   "type": "address" },
+          { "internalType": "bool",    "name": "finalized",       "type": "bool"    },
+          { "internalType": "bool",    "name": "success",         "type": "bool"    }
+        ], "internalType": "struct DauGia.Auction", "name": "", "type": "tuple" } ],
+      "stateMutability": "view", "type": "function"
+    },
+    { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" } ], "name": "getStatus",     "outputs": [ { "internalType": "uint8",   "name": "", "type": "uint8"   } ], "stateMutability": "view", "type": "function" },
+    { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" } ], "name": "getWhitelist",  "outputs": [ { "internalType": "address[]", "name": "", "type": "address[]" } ], "stateMutability": "view", "type": "function" },
+    { "inputs": [ { "internalType": "address", "name": "user", "type": "address" } ], "name": "isRegistered","outputs": [ { "internalType": "bool",   "name": "", "type": "bool"   } ], "stateMutability": "view", "type": "function" },
+    { "inputs": [ { "internalType": "uint256", "name": "id",   "type": "uint256" }, { "internalType": "address", "name": "user", "type": "address" } ], "name": "isWhitelisted", "outputs": [ { "internalType": "bool", "name": "", "type": "bool" } ], "stateMutability": "view", "type": "function" },
+    { "inputs": [ { "internalType": "uint256", "name": "id",   "type": "uint256" } ], "name": "getMinNextBid","outputs": [ { "internalType": "uint128", "name": "", "type": "uint128" } ], "stateMutability": "view", "type": "function" },
+    { "inputs": [], "name": "register", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+    { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" }, { "internalType": "address[]", "name": "addrs", "type": "address[]" }, { "internalType": "address[]", "name": "removes", "type": "address[]" } ],
+      "name": "updateWhitelist", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+    },
+    { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" }, { "internalType": "uint128", "name": "amountVND", "type": "uint128" } ],
+      "name": "placeBid", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+    },
+    { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" } ], "name": "finalize", "outputs": [], "stateMutability": "nonpayable", "type": "function" }
   ];
 
-  // ====== BIẾN TOÀN CỤC UI/WEB3 ======
-  let provider, signer, account, chainId;
-  let dg, vin; // contract instances
+  // Phí 0.001 VIN (18 decimals)
+  const FEE_VIN = ethers.utils.parseUnits("0.001", 18);
 
-  // ====== TRỢ GIÚP THỜI GIAN VIỆT NAM (GMT+7) ======
-  const tz = "Asia/Bangkok";
-  function epochToVN(sec){
-    return new Date(sec*1000).toLocaleString("vi-VN", { timeZone: tz, hour12:false });
-  }
-  // dd/mm/yyyy hh:mm (giờ 24), trả về epoch giây GMT+7
-  function parseVN(text){
-    // "dd/mm/yyyy hh:mm"
-    const m = String(text||"").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/);
-    if(!m) return null;
-    let [_, dd, mm, yyyy, HH, MM] = m.map(Number);
-    // Lấy thời điểm theo Asia/Bangkok bằng cách tạo đối tượng Date ở UTC rồi trừ offset -7h
-    const d = new Date(Date.UTC(yyyy, mm-1, dd, HH-7, MM, 0)); // giờ VN = UTC+7 => UTC = VN-7
-    return Math.floor(d.getTime()/1000);
-  }
+  // Múi giờ Việt Nam
+  const VN_TZ = "Asia/Bangkok";
 
-  // Định dạng số VND có dấu chấm ngăn cách
-  const fmtVND = (n) => (n==null? "-" : n.toLocaleString("vi-VN"));
+  /* -------------------- Trạng thái -------------------- */
+  let readProvider = new ethers.providers.JsonRpcProvider(RPC_URL);
+  let web3Provider = null;    // ethers.providers.Web3Provider
+  let signer = null;
+  let account = null;
 
-  // ====== TRỢ GIÚP DOM ======
+  let DG = null;              // Contract đọc/ghi
+  let VIN = null;
+
+  /* -------------------- DOM -------------------- */
   const $ = (id) => document.getElementById(id);
-  const qs = (sel, el=document) => el.querySelector(sel);
+  const els = {
+    connect: $("btn-connect"),
+    disconnect: $("btn-disconnect"),
+    walletInfo: $("wallet-info"),
+    addrShort: $("addr-short"),
+    vinBal: $("vin-balance"),
+    vicBal: $("vic-balance"),
 
-  const elConnect = $("connectBtn");
-  const elAcc = $("accountInfo");
-  const elAddr = $("accountAddr");
-  const elVin = $("vinBal");
-  const elVic = $("vicBal");
-  const elReg = $("registerBtn");
-  const elCreateBtn = $("createAuctionBtn");
-  const elList = $("auctionsList");
-  const elTpl = $("auctionCardTpl");
-  const elDialog = $("createDialog");
-  const elForm = $("createForm");
+    btnRegister: $("btn-register"),
+    btnOpenCreate: $("btn-open-create"),
 
-  // ====== KẾT NỐI VÍ ======
-  async function ensureProvider(){
-    if(!window.ethereum){
-      alert("Không tìm thấy ví Web3. Hãy cài MetaMask (desktop) hoặc mở trang trong trình duyệt ví (di động).");
-      return null;
-    }
-    try{
-      provider = new ethers.BrowserProvider(window.ethereum);
-      chainId = (await provider.getNetwork()).chainId;
-      // Switch hoặc Add chain 88
-      if (chainId !== 88n) {
-        try{
-          await window.ethereum.request({ method:"wallet_switchEthereumChain", params:[{ chainId: CHAIN_ID_HEX }] });
-        }catch(e){
-          if (e && (e.code === 4902 || e.message?.includes("Unrecognized chain"))) {
-            await window.ethereum.request({ method:"wallet_addEthereumChain", params:[CHAIN_PARAMS] });
-          } else {
-            throw e;
-          }
-        }
-      }
-      return provider;
-    }catch(e){
-      console.error(e);
-      alert("Không thể khởi tạo provider: " + (e.message||e));
-      return null;
-    }
+    list: $("auctions-list"),
+    tpl: $("tpl-auction"),
+
+    search: $("searchInput"),
+    filter: $("statusFilter"),
+    btnSearch: $("searchBtn"),
+    btnClear: $("clearSearchBtn"),
+
+    dlgCreate: $("createDialog"),
+    formCreate: $("createForm"),
+    fSummary: $("fSummary"),
+    fThongBao: $("fThongBao"),
+    fQuiChe: $("fQuiChe"),
+    fCutoff: $("fCutoff"),
+    fStart: $("fStart"),
+    fEnd: $("fEnd"),
+    fStartPrice: $("fStartPrice"),
+    fStep: $("fStep"),
+  };
+
+  /* -------------------- Tiện ích -------------------- */
+  const shortAddr = (a) => a ? (a.slice(0, 6) + "…" + a.slice(-4)) : "";
+  function fmtVND(x) {
+    const s = (typeof x === "string") ? x.replace(/\D/g, "") :
+              ethers.BigNumber.isBigNumber(x) ? x.toString() :
+              String(x ?? "").replace(/\D/g, "");
+    if (!s) return "0";
+    return s.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  }
+  function parseVNDToBN(s) {
+    const digits = String(s ?? "").replace(/\D/g, "");
+    return digits ? ethers.BigNumber.from(digits) : ethers.BigNumber.from(0);
+  }
+  function epochToVN(sec) {
+    const d = new Date(sec * 1000);
+    const s = d.toLocaleString("vi-VN", {
+      timeZone: VN_TZ, hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit"
+    });
+    return s.replace(",", "");
+  }
+  function parseVNDateTime(s) {
+    const m = String(s || "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/);
+    if (!m) return null;
+    let dd = +m[1], mm = +m[2] - 1, yyyy = +m[3], HH = +m[4], MM = +m[5];
+    // VN = UTC+7 => UTC = VN - 7
+    const ms = Date.UTC(yyyy, mm, dd, HH - 7, MM, 0);
+    return Math.floor(ms / 1000);
   }
 
-  async function connectWallet(){
-    const p = await ensureProvider();
-    if(!p) return;
-    try{
-      await p.send("eth_requestAccounts", []);
-      signer = await p.getSigner();
-      account = await signer.getAddress();
-      chainId = (await p.getNetwork()).chainId;
-
-      // Instances
-      dg = new ethers.Contract(CONTRACT_ADDR, DG_ABI, signer);
-      vin = new ethers.Contract(VIN_ADDR, ERC20_ABI, signer);
-
-      // UI header
-      elConnect.classList.add("hidden");
-      elAcc.classList.remove("hidden");
-      elAddr.textContent = account;
-
-      // Balances
-      const [vicBalRaw, vinBalRaw] = await Promise.all([
-        p.getBalance(account),
-        vin.balanceOf(account)
-      ]);
-      elVic.textContent = Number(ethers.formatUnits(vicBalRaw, 18)).toFixed(4);
-      elVin.textContent = Number(ethers.formatUnits(vinBalRaw, 18)).toFixed(4);
-
-      // Đăng ký / Tạo cuộc đấu giá
-      const registered = await dg.isRegistered(account);
-      if (registered) {
-        elReg.classList.add("hidden");
-        elCreateBtn.classList.remove("hidden");
+  /* -------------------- Kết nối ví -------------------- */
+  async function ensureChain() {
+    const provider = window.ethereum;
+    const chainId = await provider.request({ method: "eth_chainId" });
+    if (chainId === CHAIN_ID_HEX) return;
+    try {
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX }] });
+    } catch (e) {
+      if (e.code === 4902) {
+        await provider.request({ method: "wallet_addEthereumChain", params: [CHAIN_INFO] });
       } else {
-        elReg.classList.remove("hidden");
-        elCreateBtn.classList.add("hidden");
+        throw e;
       }
-
-      // Lắng nghe thay đổi tài khoản/chain
-      window.ethereum.on?.("accountsChanged", () => location.reload());
-      window.ethereum.on?.("chainChanged", () => location.reload());
-
-      // Làm mới danh sách (để show nút theo vai trò)
-      await loadAuctions();
-    }catch(e){
-      console.error(e);
-      alert("Kết nối ví thất bại: " + (e.message||e));
     }
   }
 
-  // ====== PHÍ VIN: APPROVE 0.001 VIN MỖI HÀNH ĐỘNG ======
-  async function ensureFeeApproved(spender){
-    const allow = await vin.allowance(account, spender);
-    if (allow >= FEE_VIN) return;
-    const tx = await vin.approve(spender, FEE_VIN, { gasLimit: 200000 });
+  async function connectWallet() {
+    if (!window.ethereum || !window.ethers) {
+      alert("Không tìm thấy ví Web3. Hãy cài MetaMask / dùng trình duyệt ví.");
+      return;
+    }
+    web3Provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+    await ensureChain();
+    await web3Provider.send("eth_requestAccounts", []);
+    signer = web3Provider.getSigner();
+    account = await signer.getAddress();
+
+    DG = new ethers.Contract(DG_ADDR, DG_ABI, signer);
+    VIN = new ethers.Contract(VIN_ADDR, ERC20_MIN_ABI, signer);
+
+    // UI header
+    els.connect.classList.add("hidden");
+    els.walletInfo.classList.remove("hidden");
+    els.addrShort.textContent = shortAddr(account);
+
+    await refreshBalances();
+    await updateHeaderButtons();
+    await renderAuctions(); // để hiện đúng nút theo vai trò
+
+    // Sự kiện ví
+    window.ethereum.on && window.ethereum.on("accountsChanged", () => location.reload());
+    window.ethereum.on && window.ethereum.on("chainChanged", () => location.reload());
+  }
+
+  function disconnectWallet() {
+    // Với EVM wallet trên web, không có API "disconnect". Ta chỉ reset UI.
+    signer = null; account = null; DG = null; VIN = null;
+    els.walletInfo.classList.add("hidden");
+    els.connect.classList.remove("hidden");
+    els.btnRegister.classList.add("hidden");
+    els.btnOpenCreate.classList.add("hidden");
+  }
+
+  async function refreshBalances() {
+    if (!account) return;
+    const vicWei = await web3Provider.getBalance(account);
+    els.vicBal.textContent = Number(ethers.utils.formatEther(vicWei)).toFixed(4);
+
+    const d = await VIN.decimals().catch(() => 18);
+    const vinBal = await VIN.balanceOf(account);
+    els.vinBal.textContent = Number(ethers.utils.formatUnits(vinBal, d)).toFixed(4);
+  }
+
+  async function updateHeaderButtons() {
+    if (!DG || !account) return;
+    const isReg = await DG.isRegistered(account);
+    if (isReg) {
+      els.btnRegister.classList.add("hidden");
+      els.btnOpenCreate.classList.remove("hidden");
+    } else {
+      els.btnRegister.classList.remove("hidden");
+      els.btnOpenCreate.classList.add("hidden");
+    }
+  }
+
+  async function ensureFeeAllowance() {
+    const allow = await VIN.allowance(account, DG_ADDR);
+    if (allow.gte(FEE_VIN)) return;
+    const tx = await VIN.approve(DG_ADDR, FEE_VIN);
     await tx.wait();
   }
 
-  // ====== TẢI DANH SÁCH PHIÊN ======
-  async function loadAuctions(){
-    try{
-      const count = await (dg ? dg.auctionCount() : new ethers.Contract(CONTRACT_ADDR, DG_ABI, new ethers.JsonRpcProvider("https://rpc.viction.xyz")).auctionCount());
-      elList.innerHTML = "";
-      if (count === 0n){
-        elList.innerHTML = `<div class="empty">Chưa có cuộc đấu giá nào.</div>`;
-        return;
+  /* -------------------- Danh sách đấu giá -------------------- */
+  const DG_READ = new ethers.Contract(DG_ADDR, DG_ABI, readProvider);
+
+  async function fetchAuctionCount() {
+    try { return await DG_READ.auctionCount(); } catch { return ethers.BigNumber.from(0); }
+  }
+  async function fetchAuction(id) {
+    const [a, st] = await Promise.all([DG_READ.getAuction(id), DG_READ.getStatus(id)]);
+    return { a, st };
+  }
+
+  async function renderAuctions() {
+    els.list.textContent = "Đang tải…";
+    try {
+      const count = await fetchAuctionCount();
+      const num = ethers.BigNumber.from(count).toNumber();
+      const ids = [];
+      for (let i = num; i >= 1; i--) ids.push(i);
+
+      els.list.innerHTML = "";
+      if (!ids.length) { els.list.textContent = "Chưa có cuộc đấu giá."; return; }
+
+      for (const id of ids) {
+        const node = await buildCard(id);
+        els.list.appendChild(node);
       }
-      for (let i = Number(count); i >= 1; i--){
-        await renderAuction(i);
-      }
-    }catch(e){
+    } catch (e) {
       console.error(e);
-      elList.innerHTML = `<div class="empty">Không tải được danh sách phiên.</div>`;
+      els.list.textContent = "Không tải được danh sách.";
     }
   }
 
-  function fill(el, sel, text){ qs(sel, el).textContent = text; }
+  async function buildCard(id) {
+    const { a, st } = await fetchAuction(id);
+    const node = els.tpl.content.firstElementChild.cloneNode(true);
 
-  async function renderAuction(id){
-    const prov = provider || new ethers.JsonRpcProvider("https://rpc.viction.xyz");
-    const read = new ethers.Contract(CONTRACT_ADDR, DG_ABI, prov);
-    const a = await read.getAuction(id);
+    // Tiêu đề / chi tiết
+    node.querySelector(".title").textContent = a.summary || `(Phiên #${id})`;
+    const body = node.querySelector(".card-body");
+    node.querySelector(".detailBtn").addEventListener("click", () => {
+      body.classList.toggle("hidden");
+      if (!body.classList.contains("hidden")) loadWhitelistInto(node, id);
+    });
 
-    const node = elTpl.content.firstElementChild.cloneNode(true);
-    qs(".title", node).textContent = a.summary || `(Phiên #${id})`;
-    qs(".detailBtn", node).onclick = () => qs(".card-body", node).classList.toggle("hidden");
+    // Nội dung / links
+    node.querySelector(".snippet").textContent = " ";
+    const linkTB = node.querySelector(".thongbao");
+    const linkQC = node.querySelector(".quyche");
+    linkTB.href = a.thongBaoUrl;
+    linkQC.href = a.quiCheUrl;
 
-    fill(node, ".time", `${epochToVN(Number(a.auctionStart))} → ${epochToVN(Number(a.auctionEnd))}`);
-    fill(node, ".cutoff", epochToVN(Number(a.whitelistCutoff)));
-    fill(node, ".startPrice", fmtVND(Number(a.startPriceVND)));
-    fill(node, ".step", fmtVND(Number(a.stepVND)));
-    fill(node, ".current", a.currentPriceVND>0n ? fmtVND(Number(a.currentPriceVND)) : "—");
-    fill(node, ".leader", a.currentLeader !== ethers.ZeroAddress ? a.currentLeader : "—");
+    node.querySelector(".time").textContent = `${epochToVN(a.auctionStart)} → ${epochToVN(a.auctionEnd)}`;
+    node.querySelector(".cutoff").textContent = epochToVN(a.whitelistCutoff);
+    node.querySelector(".startPrice").textContent = fmtVND(a.startPriceVND.toString());
+    node.querySelector(".step").textContent = fmtVND(a.stepVND.toString());
+    node.querySelector(".current").textContent = a.currentLeader === ethers.constants.AddressZero ? "—" : fmtVND(a.currentPriceVND.toString());
+    node.querySelector(".leader").textContent  = a.currentLeader === ethers.constants.AddressZero ? "—" : shortAddr(a.currentLeader);
 
-    const linkTB = qs(".thongbao", node);
-    const linkQC = qs(".quiche", node);
-    linkTB.href = a.thongBaoUrl; linkQC.href = a.quiCheUrl;
+    node.querySelector(".status").textContent = `Tình trạng: ${["Chưa diễn ra","Đang diễn ra","Đã kết thúc","Đã chốt"][Number(st)] ?? "—"}`;
 
-    const wlBox = qs(".wlList", node);
-    wlBox.textContent = "Đang tải…";
-    read.getWhitelist(id).then(list=>{
-      wlBox.textContent = (list && list.length) ? list.join("\n") : "Chưa có địa chỉ nào.";
-    }).catch(()=> wlBox.textContent = "—");
+    // Join / Back
+    node.querySelector(".joinBtn").addEventListener("click", () => {
+      [...els.list.children].forEach(el => { if (el !== node) el.style.display = "none"; });
+      body.classList.remove("hidden");
+      loadWhitelistInto(node, id);
+    });
+    node.querySelector(".backBtn").addEventListener("click", () => {
+      [...els.list.children].forEach(el => { el.style.display = ""; });
+    });
 
-    // Nút hành động (phụ thuộc ví)
-    const btnJoin = qs(".joinBtn", node);
-    const btnBack = qs(".backBtn", node);
-    const btnReg  = qs(".regBtn", node);
-    const btnCreate = qs(".createBtn", node);
-    const btnUpd = qs(".updateWlBtn", node);
-    const btnBid = qs(".bidBtn", node);
-    const status = qs(".status", node);
+    // Nút theo vai trò (khi đã kết nối ví)
+    const regBtn   = node.querySelector(".regBtn");
+    const createBtn= node.querySelector(".createBtn");
+    const updBtn   = node.querySelector(".updateWlBtn");
+    const bidBtn   = node.querySelector(".bidBtn");
 
-    btnJoin.onclick = () => {
-      // “Tham gia” => chỉ focus vào thẻ này (ẩn các thẻ khác)
-      [...elList.children].forEach(c => { if(c!==node) c.style.display="none"; });
-    };
-    btnBack.onclick = () => {
-      [...elList.children].forEach(c => c.style.display="");
-    };
-
-    const now = Math.floor(Date.now()/1000);
-    const st = await read.getStatus(id);
-    const stText = ["Chưa diễn ra","Đang diễn ra","Đã kết thúc","Đã chốt"][Number(st)] || "—";
-    status.textContent = `Tình trạng: ${stText}`;
-
-    if (account){
-      // Vai trò của ví hiện thời
-      const isOrg = (String(a.organizer).toLowerCase() === account.toLowerCase());
-      const registered = await dg.isRegistered(account);
-
-      // Đăng ký/Tạo
-      btnReg.classList.toggle("hidden", registered);
-      btnCreate.classList.toggle("hidden", !registered);
-
-      // Organizer: cập nhật whitelist trước cutoff
-      const canUpd = isOrg && now < Number(a.whitelistCutoff);
-      btnUpd.classList.toggle("hidden", !canUpd);
-      btnUpd.onclick = async () => {
-        try{
-          await ensureFeeApproved(CONTRACT_ADDR);
-          const add = prompt("Dán danh sách địa chỉ (cách nhau bởi dấu phẩy) cần THÊM vào whitelist:", "");
-          const rem = prompt("Dán danh sách địa chỉ (cách nhau bởi dấu phẩy) cần GỠ khỏi whitelist (có thể để trống):", "");
-          const addrs = (add||"").split(",").map(s=>s.trim()).filter(Boolean);
-          const removes = (rem||"").split(",").map(s=>s.trim()).filter(Boolean);
-          const tx = await dg.updateWhitelist(id, addrs, removes, { gasLimit: 800000 });
-          alert("Đang gửi giao dịch cập nhật whitelist…");
-          await tx.wait();
-          alert("Cập nhật whitelist thành công!");
-          await renderRefresh(node, id);
-        }catch(e){ alert("Lỗi cập nhật whitelist: " + (e.reason||e.message||e)); }
-      };
-
-      // Bỏ giá: chỉ whitelist, chỉ khi đang diễn ra, organizer KHÔNG có nút bỏ giá
-      const isWL = await read.isWhitelisted(id, account);
-      const canBid = !isOrg && isWL && (now >= Number(a.auctionStart) && now < Number(a.auctionEnd));
-      btnBid.classList.toggle("hidden", !canBid);
-      btnBid.onclick = async () => {
-        try{
-          const minNext = await read.getMinNextBid(id);
-          const humanMin = Number(minNext);
-          const val = prompt(`Nhập giá bỏ (VND) ≥ ${fmtVND(humanMin)}:`, humanMin ? String(humanMin) : "");
-          if(!val) return;
-          const amount = BigInt(val);
-          if (amount < minNext) { alert("Giá quá thấp."); return; }
-          await ensureFeeApproved(CONTRACT_ADDR);
-          const tx = await dg.placeBid(id, amount, { gasLimit: 800000 });
-          alert("Đang gửi giao dịch bỏ giá…");
-          await tx.wait();
-          alert("Bỏ giá thành công!");
-          await renderRefresh(node, id);
-        }catch(e){ alert("Lỗi bỏ giá: " + (e.reason||e.message||e)); }
-      };
+    if (!account || !DG) {
+      regBtn.classList.add("hidden");
+      createBtn.classList.add("hidden");
+      updBtn.classList.add("hidden");
+      bidBtn.classList.add("hidden");
     } else {
-      // Chưa kết nối ví: chỉ có Join/Back (giữ nguyên)
+      (async () => {
+        const isReg = await DG.isRegistered(account);
+        regBtn.classList.toggle("hidden", isReg);
+        createBtn.classList.toggle("hidden", !isReg);
+
+        const isOrg = a.organizer.toLowerCase() === account.toLowerCase();
+        const now = Math.floor(Date.now() / 1000);
+
+        // Cập nhật whitelist: chỉ organizer, trước cutoff
+        const canUpd = isOrg && now < a.whitelistCutoff;
+        updBtn.classList.toggle("hidden", !canUpd);
+        if (canUpd) {
+          updBtn.addEventListener("click", () => onUpdateWhitelist(id));
+        }
+
+        // Bỏ giá: không phải organizer, trong whitelist, trong [start, end)
+        const isWL = await DG.isWhitelisted(id, account);
+        const canBid = !isOrg && isWL && now >= a.auctionStart && now < a.auctionEnd;
+        bidBtn.classList.toggle("hidden", !canBid);
+        if (canBid) {
+          bidBtn.addEventListener("click", () => onBid(id));
+        }
+
+        // Đăng ký trong card
+        regBtn.addEventListener("click", onRegister);
+        createBtn.addEventListener("click", openCreateDialog);
+      })();
     }
 
-    elList.appendChild(node);
+    return node;
   }
 
-  async function renderRefresh(node, id){
-    // Refresh nhanh các ô quan trọng sau giao dịch
-    const prov = provider || new ethers.JsonRpcProvider("https://rpc.viction.xyz");
-    const read = new ethers.Contract(CONTRACT_ADDR, DG_ABI, prov);
-    const a = await read.getAuction(id);
-    fill(node, ".current", a.currentPriceVND>0n ? fmtVND(Number(a.currentPriceVND)) : "—");
-    fill(node, ".leader", a.currentLeader !== ethers.ZeroAddress ? a.currentLeader : "—");
-    const st = await read.getStatus(id);
-    const stText = ["Chưa diễn ra","Đang diễn ra","Đã kết thúc","Đã chốt"][Number(st)] || "—";
-    qs(".status", node).textContent = `Tình trạng: ${stText}`;
+  async function loadWhitelistInto(cardNode, id) {
+    const wrap = cardNode.querySelector(".wlList");
+    if (!wrap || wrap.dataset.loaded === "1") return;
+    wrap.textContent = "Đang tải…";
+    try {
+      const list = await DG_READ.getWhitelist(id);
+      wrap.textContent = (list && list.length) ? list.join("\n") : "—";
+      wrap.dataset.loaded = "1";
+    } catch {
+      wrap.textContent = "—";
+    }
   }
 
-  // ====== ĐĂNG KÝ & TẠO PHIÊN ======
-  async function handleRegister(){
-    if(!signer) return alert("Vui lòng kết nối ví trước.");
-    try{
-      await ensureFeeApproved(CONTRACT_ADDR);
-      const tx = await dg.register({ gasLimit: 300000 });
-      alert("Đang gửi giao dịch đăng ký…");
+  /* -------------------- Hành động -------------------- */
+  async function onRegister() {
+    try {
+      await ensureFeeAllowance();
+      const tx = await DG.register({ gasLimit: 300000 });
       await tx.wait();
-      alert("Đăng ký thành công!");
-      await connectWallet(); // reload UI state
-    }catch(e){ alert("Lỗi đăng ký: " + (e.reason||e.message||e)); }
+      alert("Đăng ký thành công.");
+      await refreshBalances();
+      await updateHeaderButtons();
+    } catch (e) {
+      alert(e?.error?.message || e?.message || "Đăng ký thất bại.");
+    }
   }
 
-  async function handleOpenCreate(){
-    if(!signer) return alert("Vui lòng kết nối ví trước.");
-    elDialog.showModal();
+  function openCreateDialog() {
+    els.dlgCreate.showModal();
   }
 
-  elForm?.addEventListener("submit", async (ev) => {
+  els.formCreate.addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    try{
-      const summary   = $("fSummary").value.trim();
-      const thongBao  = $("fThongBao").value.trim();
-      const quiChe    = $("fQuiChe").value.trim();
-      const cutoffSec = parseVN($("fCutoff").value.trim());
-      const startSec  = parseVN($("fStart").value.trim());
-      const endSec    = parseVN($("fEnd").value.trim());
-      const startPrice= BigInt(($("fStartPrice").value||"").replace(/\D/g,""));
-      const step      = BigInt(($("fStep").value||"").replace(/\D/g,""));
+    try {
+      const summary = (els.fSummary.value || "").trim();
+      const thongBao = (els.fThongBao.value || "").trim();
+      const quiChe   = (els.fQuiChe.value || "").trim();
+      const cutoff   = parseVNDateTime(els.fCutoff.value);
+      const start    = parseVNDateTime(els.fStart.value);
+      const end      = parseVNDateTime(els.fEnd.value);
+      const startPrice = parseVNDToBN(els.fStartPrice.value);
+      const step       = parseVNDToBN(els.fStep.value);
 
-      if (!cutoffSec || !startSec || !endSec) throw new Error("Ngày giờ không đúng định dạng dd/mm/yyyy hh:mm");
-      if (!(cutoffSec > Math.floor(Date.now()/1000))) throw new Error("Hạn whitelist phải lớn hơn hiện tại");
-      if (!(cutoffSec <= startSec && startSec < endSec)) throw new Error("Thứ tự thời gian không hợp lệ");
-      if (startPrice <= 0n || step <= 0n) throw new Error("Giá khởi điểm & bước giá phải > 0");
+      if (!summary || !thongBao || !quiChe) throw new Error("Thiếu dữ liệu bắt buộc.");
+      if (!(cutoff && start && end)) throw new Error("Định dạng thời gian không đúng (dd/mm/yyyy hh:mm).");
+      const now = Math.floor(Date.now() / 1000);
+      if (!(now < cutoff && cutoff <= start && start < end)) throw new Error("Thứ tự thời gian không hợp lệ.");
+      if (startPrice.lte(0) || step.lte(0)) throw new Error("Giá khởi điểm/bước giá phải > 0.");
 
-      await ensureFeeApproved(CONTRACT_ADDR);
-
-      const a = {
+      await ensureFeeAllowance();
+      const tx = await DG.createAuction({
         summary: summary,
         thongBaoUrl: thongBao,
         quiCheUrl: quiChe,
-        whitelistCutoff: cutoffSec,
-        auctionStart: startSec,
-        auctionEnd: endSec,
+        whitelistCutoff: cutoff,
+        auctionStart: start,
+        auctionEnd: end,
         startPriceVND: startPrice,
         stepVND: step
-      };
-      const tx = await dg.createAuction(a, { gasLimit: 800000 });
-      alert("Đang gửi giao dịch tạo phiên…");
-      const rcpt = await tx.wait();
-      alert("Tạo phiên thành công!");
-      elDialog.close();
-      await loadAuctions();
-    }catch(e){
-      alert("Lỗi tạo phiên: " + (e.reason||e.message||e));
+      }, { gasLimit: 800000 });
+      await tx.wait();
+      els.dlgCreate.close();
+      alert("Đã tạo phiên.");
+      await renderAuctions();
+    } catch (e) {
+      alert(e?.error?.message || e?.message || "Tạo phiên thất bại.");
     }
   });
 
-  // ====== GẮN SỰ KIỆN NÚT ======
-  $("connectBtn")?.addEventListener("click", connectWallet);
-  $("registerBtn")?.addEventListener("click", handleRegister);
-  $("createAuctionBtn")?.addEventListener("click", handleOpenCreate);
+  async function onUpdateWhitelist(id) {
+    try {
+      const addRaw = prompt("Nhập địa chỉ cần THÊM (phân tách bằng dấu phẩy):", "");
+      const remRaw = prompt("Nhập địa chỉ cần GỠ (phân tách bằng dấu phẩy, có thể bỏ trống):", "");
+      const addrs = (addRaw || "").split(",").map(s => s.trim()).filter(Boolean);
+      const rems  = (remRaw || "").split(",").map(s => s.trim()).filter(Boolean);
 
-  // Bộ lọc tìm kiếm (client-side cơ bản)
-  $("searchBtn")?.addEventListener("click", ()=>{
-    const kw = ($("searchInput").value||"").trim().toLowerCase();
-    const st = $("statusFilter").value;
-    [...elList.children].forEach(card=>{
-      const title = qs(".title", card).textContent.toLowerCase();
-      const okKW = !kw || title.includes(kw);
-      let okST = true;
-      if (st !== ""){
-        const sText = qs(".status", card).textContent;
-        const map = {"0":"Chưa diễn ra","1":"Đang diễn ra","2":"Đã kết thúc","3":"Đã chốt"};
-        okST = sText.includes(map[st]);
+      await ensureFeeAllowance();
+      const tx = await DG.updateWhitelist(id, addrs, rems, { gasLimit: 900000 });
+      await tx.wait();
+      alert("Đã cập nhật whitelist.");
+      await renderAuctions();
+    } catch (e) {
+      alert(e?.error?.message || e?.message || "Cập nhật whitelist thất bại.");
+    }
+  }
+
+  async function onBid(id) {
+    try {
+      const min = await DG.getMinNextBid(id);
+      const human = fmtVND(min.toString());
+      const raw = prompt(`Nhập giá (VND) ≥ ${human}:`, min.toString());
+      if (raw == null) return;
+      const amt = parseVNDToBN(raw);
+      if (amt.lt(min)) { alert("Giá quá thấp."); return; }
+
+      await ensureFeeAllowance();
+      const tx = await DG.placeBid(id, amt, { gasLimit: 600000 });
+      await tx.wait();
+      alert("Đã bỏ giá.");
+      await renderAuctions();
+    } catch (e) {
+      alert(e?.error?.message || e?.message || "Bỏ giá thất bại.");
+    }
+  }
+
+  /* -------------------- Tìm kiếm -------------------- */
+  function applyFilters() {
+    const q = (els.search.value || "").trim().toLowerCase();
+    const st = els.filter.value;
+    [...els.list.children].forEach(card => {
+      const title = card.querySelector(".title")?.textContent?.toLowerCase() || "";
+      const status = card.querySelector(".status")?.textContent || "";
+      let ok = !q || title.includes(q);
+      if (ok && st !== "") {
+        const m = { "0": "Chưa diễn ra", "1": "Đang diễn ra", "2": "Đã kết thúc", "3": "Đã chốt" };
+        ok = status.includes(m[st]);
       }
-      card.style.display = (okKW && okST) ? "" : "none";
+      card.style.display = ok ? "" : "none";
     });
-  });
-  $("clearSearchBtn")?.addEventListener("click", ()=>{
-    $("searchInput").value = "";
-    $("statusFilter").value = "";
-    [...elList.children].forEach(card=> card.style.display="");
-  });
+  }
 
-  // ====== KHỞI TẠO ======
-  // Tải danh sách để người chưa kết nối vẫn xem được
-  loadAuctions();
+  /* -------------------- Khởi động -------------------- */
+  document.addEventListener("DOMContentLoaded", async () => {
+    // Kết nối ví
+    els.connect?.addEventListener("click", connectWallet);
+    els.disconnect?.addEventListener("click", disconnectWallet);
 
+    // Header actions
+    els.btnRegister?.addEventListener("click", onRegister);
+    els.btnOpenCreate?.addEventListener("click", openCreateDialog);
+
+    // Tìm kiếm
+    els.btnSearch?.addEventListener("click", applyFilters);
+    els.btnClear?.addEventListener("click", () => {
+      els.search.value = ""; els.filter.value = ""; applyFilters();
+    });
+
+    // Auto detect tài khoản đã kết nối
+    if (window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (accounts && accounts.length) {
+          await connectWallet();
+        }
+      } catch {}
+    }
+
+    // Luôn tải danh sách để người chưa kết nối vẫn xem được
+    await renderAuctions();
+  });
 })();
