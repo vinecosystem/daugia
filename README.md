@@ -1,4 +1,4 @@
-# Hướng dẫn sử dụng nền tảng **daugia.vin**
+# Hướng dẫn sử dụng nền tảng **Daugia.vin**
 
 **daugia.vin** là nền tảng đấu giá **minh bạch** trên blockchain **Viction** (EVM, chainId 88), giúp các tổ chức và cá nhân tạo và tham gia đấu giá **công bằng, minh bạch** mà không cần phải lo lắng về việc kiểm toán hay chứng minh tính minh bạch.
 
