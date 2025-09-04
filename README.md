@@ -5,7 +5,7 @@
 ## Các Thành Phần Chính Của Nền Tảng
 
 ### 1. Người Dùng
-Người dùng có thể tham gia vào nền tảng mà không cần kết nối ví, nhưng nếu muốn thực hiện các hành động như đăng ký tài khoản, tạo cuộc đấu giá, bỏ giá, họ sẽ cần kết nối ví (MetaMask, hoặc ví hỗ trợ Viction).
+Người dùng có thể tham gia vào nền tảng mà không cần kết nối ví, nhưng nếu muốn thực hiện các hành động như đăng ký tài khoản, tạo cuộc đấu giá, bỏ giá, họ sẽ cần kết nối ví MetaMask, chuyển mạng viction (https://rpc.viction.xyz) (https://vicscan.xyz) (chain ID 0x58 or 88) (Symbol: VIC); trong ví cần có VIC để trả gas và VIN để trả phí. 
 
 #### Mỗi người dùng có thể thực hiện các thao tác sau:
 - **Đăng ký tài khoản**: Mỗi ví chỉ cần trả **0.001 VIN** duy nhất để đăng ký tài khoản trên nền tảng.
