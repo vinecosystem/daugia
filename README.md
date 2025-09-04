@@ -1,153 +1,170 @@
-# 📑 Mô tả trang — daugia.vin
+Mô Tả Chi Tiết Nền Tảng DauGia.vin
 
-## 1. Trang chủ
-- **Logo & tiêu đề:** `daugia.vin — Đấu giá minh bạch trên Blockchain`
-- **Nút chính:**
-  - 🔗 **Kết nối ví** (MetaMask, mạng VIC)
-  - 📝 **Đăng ký**:  
-    - Bất kỳ ai cũng có thể đăng ký.  
-    - Khi bấm: ký ví, trả gas VIC + phí **1 USD bằng VIN**.  
-    - Sau khi đăng ký: ví được quyền **tạo cuộc đấu giá**.
+daugia.vin là nền tảng đấu giá minh bạch và công bằng, phục vụ người dùng tại Việt Nam, sử dụng công nghệ blockchain Viction (VIC). Mục tiêu của nền tảng là tạo ra các cuộc đấu giá minh bạch, nơi thông tin được công khai và không có sự can thiệp của bất kỳ tổ chức trung gian nào. Nền tảng này không thu tiền đặt cọc hay tiền bán tài sản mà chỉ thực hiện việc tạo ra các cuộc đấu giá minh bạch, giúp công chúng có thể tham gia và theo dõi các cuộc đấu giá một cách rõ ràng và công bằng.
 
----
+Các Thành Phần Chính Của Nền Tảng
+1. Người Dùng
 
-## 2. Tạo cuộc đấu giá
-Sau khi đăng ký, ví sẽ thấy nút **“Tạo cuộc đấu giá”**.  
+Người dùng có thể tham gia vào nền tảng mà không cần kết nối ví, nhưng nếu muốn thực hiện các hành động như đăng ký tài khoản, tạo cuộc đấu giá, bỏ giá, họ sẽ cần kết nối ví (MetaMask, hoặc ví hỗ trợ Viction).
 
-Khi bấm, hệ thống mở **mẫu chuẩn** để khai báo thông tin cuộc đấu giá:
+Mỗi người dùng có thể thực hiện các thao tác sau:
 
-1. **Thông tin đơn vị tổ chức**
-   - Tên đơn vị (bắt buộc)  
-   - Địa chỉ (tùy chọn)
-   - Số điện thoại (tùy chọn)
-   - Email (tùy chọn)  
-   - Website (tùy chọn)  
-   - Mã số thuế / Giấy phép ĐKKD (tùy chọn)
+Đăng ký tài khoản: Mỗi ví chỉ cần trả 0.001 VIN duy nhất để đăng ký tài khoản trên nền tảng.
 
-2. **Bên bán tài sản**
-   - Tên đơn vị (bắt buộc)  
-   - Địa chỉ (tùy chọn)
-   - Số điện thoại (tùy chọn)
-   - Email (tùy chọn)  
-   - Website (tùy chọn)  
-   - Mã số thuế / Giấy phép ĐKKD (tùy chọn)
-     
-3. **Mô tả tài sản**
-   - Tiêu đề (≤200 ký tự)  
-   - Mô tả chi tiết (tối đa 20.000 ký tự)  
-   - Địa điểm tài sản  
-   - Ảnh minh họa (IPFS URL/CID, tùy chọn)  
-   - Tài liệu pháp lý (IPFS URL/CID, tùy chọn)
+Tạo cuộc đấu giá: Người dùng đã đăng ký có thể tạo cuộc đấu giá mới.
 
-4. **Thời gian xem tài sản**: từ – đến (GMT+7)
+Tham gia đấu giá: Người dùng có thể tham gia vào các cuộc đấu giá đang diễn ra bằng cách bỏ giá.
 
-5. **Thời gian nộp tiền đặt cọc**: từ – đến (GMT+7)
+Cập nhật danh sách ví đã đặt cọc: Chỉ có chủ cuộc đấu giá mới có quyền này.
 
-6. **Giá khởi điểm** (VND)
+2. Các Mẫu Thông Tin Cần Nhập Khi Tạo Cuộc Đấu Giá
 
-7. **Bước giá tối thiểu** (VND)
+Khi tạo một cuộc đấu giá, tổ chức (người tạo cuộc đấu giá) sẽ điền vào một mẫu với các thông tin bắt buộc và tùy chọn như sau:
 
-8. **Mức tiền đặt cọc** (VND)
+Mô Tả Ngắn Gọn Tài Sản Đấu Giá (Bắt buộc):
 
-9. **Hạn cuối cập nhật ví đã đặt cọc** (datetime GMT+7)
+Mô tả ngắn về tài sản đấu giá sẽ được hiển thị ngay trên đầu mỗi cuộc đấu giá. Thông tin này có thể là một đoạn ngắn, tương tự như một câu tiêu đề.
 
-10. **Thông tin tài khoản nhận tiền đặt cọc**
-    - Tên chủ tài khoản  
-    - Số tài khoản ngân hàng  
-    - Tên ngân hàng  
-    - Nội dung chuyển khoản (mặc định: “Tên + địa chỉ ví VIC”)
+Thông Báo Đấu Giá (Bắt buộc):
 
-11. **Thời gian phiên đấu giá**: ngày giờ **bắt đầu – kết thúc** (GMT+7)
+Đây là nội dung chi tiết về tài sản đấu giá, có thể dài tối đa 20,000 ký tự. Phần này cho phép người tổ chức nhập thông tin đầy đủ về tài sản, cũng như các quy định chi tiết về cuộc đấu giá.
 
-➡️ Sau khi điền xong → bấm **Ký & Đăng**  
-- MetaMask mở xác nhận.  
-- Trả gas VIC + phí 1 USD VIN.  
-- Hệ thống ghi dữ liệu **on-chain** + lưu chi tiết **IPFS**.  
-- Cuộc đấu giá hiển thị công khai.
+Mô tả này phải được dán vào từ link trên Pitana (nền tảng lưu trữ tài liệu của bạn), nơi tài liệu đã được chuẩn bị sẵn. Tất cả thông tin này phải được lưu trữ trên Pitana và sẽ chỉ nhập link tài liệu vào phần này.
 
----
+Qui Chế Đấu Giá (Bắt buộc):
 
-## 3. Sau khi tạo xong một cuộc đấu giá
-Mỗi cuộc đấu giá hiển thị:
+Đây là link tới tài liệu qui chế đấu giá của cuộc đấu giá. Quy chế này được chuẩn bị và lưu trữ trên Pitana, và chỉ cần dán link vào đây.
 
-### Thông tin chung
-- Tiêu đề & mô tả tài sản  
-- Ảnh & tài liệu IPFS  
-- Thông tin tổ chức & bên bán  
+Thời Gian Đấu Giá (Bắt buộc):
 
-### Thời gian
-- Khung xem tài sản  
-- Khung nộp cọc  
-- Phiên đấu giá (start–end)  
-- Hạn cập nhật whitelist  
-- Đồng hồ đếm ngược  
+Thời gian bắt đầu và kết thúc của cuộc đấu giá phải được khai báo bằng định dạng dd/mm/yyyy và giờ 24h. Điều này sẽ giúp hệ thống xác định thời gian bắt đầu và kết thúc của cuộc đấu giá.
 
-### Giá
-- Giá khởi điểm  
-- Bước giá  
-- Mức tiền cọc  
-- Giá hiện thời  
-- Giá trúng (sau khi kết thúc)  
+Thời Gian Cập Nhật Ví Đã Đặt Cọc (Bắt buộc):
 
-### Danh sách & trạng thái
-- Danh sách ví đã cọc (whitelist)  
-- Ví đang dẫn đầu  
-- Ví trúng cuộc (sau khi kết thúc)  
-- Lịch sử đặt giá (thời gian – ví – số tiền, log on-chain)  
+Thời gian cập nhật ví đã đặt cọc: Địa chỉ ví của người tham gia đấu giá sẽ được người tổ chức cập nhật trước khi thời gian cutoff kết thúc.
 
-### Nút chức năng
-- **Người tham gia**:  
-  - “Bỏ giá” (chỉ hoạt động khi ví thuộc whitelist + phiên ACTIVE)
-- **Người tổ chức**:  
-  - “Cập nhật ví đã đặt cọc” (chỉ organizer, đến cutoff)
+Giá Khởi Điểm (Bắt buộc):
 
----
+Mức giá khởi điểm của tài sản đấu giá (được nhập dưới dạng VND), và phần giá này sẽ được hiển thị với dấu chấm phân cách số (ví dụ: 100.000.000 VND).
 
-## 4. Giao diện trang web khi người dùng chưa kết nối ví
-- Thanh điều hướng phía trên để ghim các thành phần cần thiết  
-- logo và câu slogan: Đấu giá minh bạch trên Blockchain
-- Giá vin hiện theo USD (kiểu hiện 1 VIN = 23.45 USD)
-- ô tìm kiếm và nút tìm bên cạnh: người dùng nhập thông tin cần tìm để tìm cuộc đấu giá mình quan tâm
-- nút kết nối ví
-- Màn hình chính là danh sách các cuộc đấu giá (nếu các cuộc đấu giá đã được tạo sẽ hiện)
-- Thanh điều hướng phía chân trang để các link: hợp đồng thông minh đấu giá, hướng dẫn, vin token; swap vin/vic
----
+Bước Giá (Bắt buộc):
 
-## 5. giao diện trang web khi người dùng kết nối ví thanh công
-- Thêm các yếu tố sau so với giao diện chưa kết nối
-  - nút "đăng ký": nếu ví đó chưa đăng ký sẽ có nút đăng ký hiện ra; nếu ví đó đã đăng ký thì có nút "tạo cuộc đấu giá" nghĩa là kiểm tra ví đó chưa đăng ký thì nút đăng ký hiện ra họ đăng ký trả 1$ trả bằng vin thì có thông báo đăng ký thành công và khi đó có nút "tạo cuộc đấu giá" hiện ra.  
--   hiện địa chỉ ví, số dư vin, vic
-- như vậy màn hình giao diện khi kết nối ví thành công sẽ có thêm thông tin ví, số dư vin, vic và nút kết nối thay bằng ngắt kết nối và nút "đăng ký" hiện ra; nếu ví đó đã đăngký thì nút "tạo cuộc đấu giá" sẽ hiện ra
+Bước giá tối thiểu: Số tiền mà mỗi người tham gia phải bỏ giá cao hơn người trước ít nhất 1 bước giá.
 
----
+3. Quy Trình Tạo Cuộc Đấu Giá
 
-## 6. Hành vi & thông báo
-- Mọi thao tác (đăng ký, tạo cuộc đấu giá, cập nhật ví của người tham ra đấu giá đã đặt cọc, bỏ giá) → đều cần ký ví, trả gas VIC + phí 1 USD VIN.  
-- **Luật bỏ giá:**  
-  - Mức đặt giá ≥ (giá hiện tại + bước giá).  
-- **Thông báo gợi ý:**
-  - ⏳ Trước giờ: `Phiên đấu giá chưa bắt đầu.`  
-  - ⏹ Sau giờ: `Cuộc đấu giá đã kết thúc.`  
-  - 🚫 Không whitelist: `Ví của bạn chưa được xác nhận đặt cọc.`  
-  - ⚠️ Sai giá: `Giá bạn đặt quá thấp. Tối thiểu: {minValidBid}.`  
-  - ❌ Không ai tham gia: `Đấu giá thất bại, không có người tham gia.`  
-  - ✅ Thành công: `Đặt giá thành công {bidAmount}. Bạn đang dẫn đầu.`
+Sau khi nhập đầy đủ các thông tin, người tổ chức sẽ bấm nút “Đăng”.
 
----
+Hệ thống sẽ gọi ký ví và thu 0.001 VIN để tạo cuộc đấu giá.
 
-## 7. Minh bạch & tốc độ
-- Whitelist, bid, kết quả → **log on-chain công khai**.  
-- Không hạn chế spam / cooldown / anti-sniping.  
-- Ai xác nhận giao dịch **trước** thì dẫn đầu.  
-- UI mặc định gợi ý **Max gas speed** khi gửi bid.
+Cuộc đấu giá sẽ được tạo thành công và hiển thị trên nền tảng.
 
----
+4. Các Nút và Quyền Hạn
 
-## ✅ Tóm tắt
-- **Đăng ký**: ai cũng có thể, 1 USD VIN.  
-- **Tạo phiên**: điền mẫu chuẩn → ký & đăng → công bố on-chain.  
-- **Chi tiết phiên**: minh bạch thông tin, giá, ví đã cọc, lịch sử bid.  
-- **Tham gia**: chỉ ví đã cọc được bỏ giá.  
-- **Kết thúc**: công bố ví thắng + giá trúng, hoặc thất bại nếu không ai tham gia.  
+Nút “Tham Gia”: Mọi người dùng đều có thể tham gia cuộc đấu giá, dù chưa kết nối ví.
 
-như vậy khi người dùng đã đăng ký thì sẽ có nút "tạo cuộc đấu giá" họ bấm nút này một mẫu chuẩn sẽ hiện ra họ khai báo xong bấm nút đăng gọi ký ví thì cuộc đấu giá sẽ hiện ra và ai cũng có thể xem và đọc được. dưới mỗi cuộc đấu giá sẽ có 2 nút là "bỏ giá" dành cho người đã đặt cọc và nút "cập nhật ví của người đã cọc" nút này dành cho người tạo cuộc đấu giá để cập nhật ví cho người đã đặt cọc. người dùng chỉ bấm được nút bỏ giá khi người tạo cuộc đấu giá cập nhật ví của họ lên.
+Nút “Trở về danh sách”: Quay lại danh sách các cuộc đấu giá.
+
+Nút “Đăng Ký”: Nếu ví chưa đăng ký tài khoản, nút này sẽ hiển thị và yêu cầu thanh toán phí 0.001 VIN để đăng ký tài khoản.
+
+Nút “Tạo Cuộc Đấu Giá”: Sau khi đăng ký thành công, người dùng có thể tạo cuộc đấu giá mới.
+
+Nút “Bỏ Giá”: Nếu người dùng đã đăng ký và có trong danh sách whitelist, họ sẽ thấy nút này để tham gia đấu giá.
+
+Nút “Cập Nhật Ví Đã Đặt Cọc”: Chủ cuộc đấu giá có thể cập nhật danh sách ví đã đặt cọc, nhưng chỉ trong thời gian quy định.
+
+5. Các Thông Tin Hiển Thị Trong Mỗi Cuộc Đấu Giá
+
+Mô Tả Tài Sản: Hiển thị mô tả ngắn gọn tài sản đấu giá.
+
+Thông Báo Đấu Giá: Hiển thị thông tin chi tiết về cuộc đấu giá từ thông báo mà người tạo đã cung cấp.
+
+Thời Gian Đấu Giá: Hiển thị thời gian bắt đầu và kết thúc của cuộc đấu giá.
+
+Danh Sách Ví Đã Đặt Cọc: Hiển thị những ví đã tham gia và được người tổ chức thêm vào whitelist.
+
+Giá Hiện Tại: Hiển thị giá hiện tại của tài sản trong cuộc đấu giá.
+
+Ví Đang Dẫn: Hiển thị ví đang đặt giá cao nhất.
+
+Nút Tham Gia / Trở Về: Cung cấp cho người dùng khả năng tham gia hoặc quay lại danh sách các cuộc đấu giá.
+
+6. Minh Bạch và Công Bằng
+
+Nền tảng sẽ minh bạch toàn bộ các cuộc đấu giá, cho phép người dùng xem chi tiết các cuộc đấu giá mà không cần phải kết nối ví. Mọi thông tin về giá, thời gian đấu giá, ví đã đặt cọc đều được công khai và không thể thay đổi.
+
+Mọi hành động trên nền tảng, từ đăng ký đến tạo đấu giá, đều yêu cầu thanh toán phí 0.001 VIN, giúp đảm bảo tính công bằng và không có sự lạm dụng.
+
+Giao Diện Nền Tảng DauGia.vin
+1. Giao Diện Khi Người Dùng Chưa Kết Nối Ví
+
+Khi người dùng chưa kết nối ví, giao diện của nền tảng sẽ bao gồm các phần sau:
+
+1.1. Header (Phần Đầu Trang)
+
+Logo và Câu Slogan Trình Duyệt:
+
+Logo nền tảng DauGia.vin và câu slogan hiển thị trên tiêu đề trình duyệt:
+DauGia.vin - Minh bạch trên blockchain
+
+Logo và Câu Slogan Trang Web:
+
+Logo DauGia.vin sẽ hiển thị ở góc trái trang web, kèm theo câu slogan “DauGia.vin - Minh bạch trên blockchain”.
+
+Nút “Kết Nối Ví”:
+
+Nút này sẽ hiển thị ở góc phải của header khi người dùng chưa kết nối ví.
+
+Hiển Thị Giá VIN Theo USD:
+
+Cạnh nút “Kết Nối Ví” sẽ là hiển thị giá VIN theo USD.
+Ví dụ: 1 VIN = 22.67 USD (làm tròn 2 chữ số thập phân).
+
+1.2. Thanh Tìm Kiếm (Search Bar)
+
+Ô Tìm Kiếm: Cho phép người dùng tìm kiếm các cuộc đấu giá theo từ khóa.
+
+1.3. Hiển Thị Các Cuộc Đấu Giá
+
+Các cuộc đấu giá sẽ được hiển thị dưới dạng 2 cột và 2 hàng:
+
+Hàng đầu tiên: Tóm tắt ngắn gọn tài sản đấu giá và nút Chi Tiết.
+
+Hàng thứ hai: Thông tin chi tiết của cuộc đấu giá.
+Mỗi cuộc đấu giá sẽ có hai nút Tham Gia và Trở về danh sách.
+
+1.4. Footer (Chân Trang)
+
+Liên Kết Hợp Đồng, VIN Token, Swap VIN/VIC, Hướng Dẫn.
+
+2. Giao Diện Khi Người Dùng Đã Kết Nối Ví
+
+Khi người dùng đã kết nối ví, giao diện sẽ có thêm thông tin ví của người dùng và các chức năng khác như sau:
+
+2.1. Header (Phần Đầu Trang)
+
+Hiển Thị Địa Chỉ Ví và Số Dư:
+
+Sau khi người dùng kết nối ví, địa chỉ ví và số dư VIN và VIC sẽ được hiển thị ở header.
+
+Nút “Đăng Ký” và “Tạo Cuộc Đấu Giá”:
+
+Nếu ví chưa đăng ký: nút Đăng Ký sẽ hiển thị và yêu cầu người dùng thanh toán phí 0.001 VIN để đăng ký tài khoản.
+
+Sau khi ví đã đăng ký: nút Tạo Cuộc Đấu Giá sẽ hiển thị thay cho nút Đăng Ký.
+
+2.2. Hiển Thị Các Cuộc Đấu Giá
+
+Giao diện hiển thị các cuộc đấu giá tương tự như khi chưa kết nối ví, nhưng có thêm một số nút và chức năng:
+
+Nút “Cập Nhật Ví Đã Cọc”: Nếu ví là chủ cuộc đấu giá, nút này sẽ cho phép cập nhật danh sách ví đã đặt cọc.
+
+Nút “Bỏ Giá”: Nếu ví đã đăng ký và có trong danh sách whitelist, người dùng sẽ thấy nút này để bỏ giá vào cuộc đấu giá.
+
+2.3. Footer (Chân Trang)
+
+Footer sẽ giống như khi chưa kết nối ví, nhưng có thêm phần Địa Chỉ Ví và Số Dư.
+
+Kết Luận
+
+Bản mô tả này cung cấp thông tin đầy đủ và chi tiết về giao diện nền tảng daugia.vin khi người dùng chưa kết nối ví và khi đã kết nối ví. Những thông tin này sẽ giúp chúng ta xây dựng hợp đồng thông minh và DApp dễ dàng và chính xác.
