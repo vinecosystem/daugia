@@ -4,13 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>daugia.vin — minh bạch trên blockchain</title>
+
+  <!-- Favicon / Logos -->
+  <link rel="icon" type="image/png" sizes="64x64" href="./vin64.png" />
+  <meta name="theme-color" content="#11141a" />
+
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <header class="container header">
     <div class="brand">
-      <div class="logo">daugia.vin</div>
-      <div class="slogan">minh bạch trên blockchain</div>
+      <img src="./vin128.png" alt="daugia.vin" class="logo-img" style="height:28px;width:auto;border-radius:6px" />
+      <div>
+        <div class="logo">daugia.vin</div>
+        <div class="slogan">minh bạch trên blockchain</div>
+      </div>
     </div>
     <div class="actions">
       <div class="vinusd">1 VIN ≈ <span id="vinUsd">--</span> USD</div>
@@ -45,7 +54,7 @@
 
   <footer class="container footer">
     <nav class="links">
-      <a id="contractLink" href="#" target="_blank" rel="noreferrer">Hợp đồng đấu giá</a>
+      <a id="contractLink" href="https://vicscan.xyz/address/0x44DeC3CBdF3448F05f082050aBC9697d8224f511#code" target="_blank" rel="noreferrer">Hợp đồng đấu giá</a>
       <a href="https://vicscan.xyz/token/0x941F63807401efCE8afe3C9d88d368bAA287Fac4" target="_blank" rel="noreferrer">VIN token</a>
       <a href="https://vicscan.xyz" target="_blank" rel="noreferrer">Swap VIN/VIC</a>
       <a href="#" id="guideLink">Hướng dẫn</a>
@@ -132,5 +141,26 @@
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.min.js"></script>
   <!-- App -->
   <script src="./app.js"></script>
+
+  <!-- Hiển thị giá 1 VIN ≈ USD (theo VIC/USDT * 100) -->
+  <script>
+    async function updateVinUsd() {
+      const el = document.getElementById('vinUsd');
+      try {
+        // Lấy giá VIC theo USDT trên Binance
+        const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT', { cache: 'no-store' });
+        if (!r.ok) throw new Error('fetch VICUSDT failed');
+        const data = await r.json();
+        const vicUsd = parseFloat(data.price);
+        if (!isFinite(vicUsd)) throw new Error('invalid price');
+        const vinUsd = vicUsd * 100; // 1 VIN = 100 VIC theo mô tả
+        el.textContent = vinUsd.toFixed(2);
+      } catch (e) {
+        el.textContent = '--';
+      }
+    }
+    updateVinUsd();
+    setInterval(updateVinUsd, 60_000); // Làm mới mỗi 60s
+  </script>
 </body>
 </html>
