@@ -1,228 +1,146 @@
-# daugia.vin — Bản mô tả sản phẩm (Product Spec)
+# Hướng dẫn sử dụng nền tảng **daugia.vin**
 
-> **Mục tiêu:** Nền tảng đấu giá **minh bạch – công bằng – đơn giản** cho người Việt, chạy hoàn toàn bằng **smart contract trên Viction (VIC)**.  
-> **Nguyên tắc:** Nền tảng **không thu/giữ tiền đặt cọc** hay **tiền bán tài sản**. Chỉ cung cấp cơ chế tổ chức một phiên đấu giá minh bạch (tạo phiên, danh sách ví đã cọc, bỏ giá, chốt phiên).
+**daugia.vin** là nền tảng đấu giá **minh bạch** trên blockchain **Viction** (EVM, chainId 88), giúp các tổ chức và cá nhân tạo và tham gia đấu giá **công bằng, minh bạch** mà không cần phải lo lắng về việc kiểm toán hay chứng minh tính minh bạch.
 
----
-
-## 1) Sản phẩm trông như thế nào sau khi hoàn thành?
-
-### 1.1. Khi **chưa kết nối ví**
-- **Header** (trên cùng):
-  - **Logo + Slogan** bên trái: `daugia.vin — minh bạch trên blockchain`.
-  - Bên phải có nút **“Kết nối ví”** và một chip nhỏ hiển thị **`1 VIN ≈ X.XX USD`** (làm tròn 2 số thập phân).
-- **Thanh tìm kiếm** kiểu Google:
-  - 1 ô nhập từ khóa (tìm theo **mô tả ngắn** hoặc **địa chỉ ví tổ chức**).
-  - Nhấn **Enter** để tìm, có nút **X** để xóa từ khóa. Có thể có bộ lọc nhanh: *Chưa diễn ra / Đang diễn ra / Đã kết thúc*.
-- **Danh sách cuộc đấu giá** (bố cục **1 cột** cả trên máy tính & điện thoại):
-  - Mỗi cuộc đấu giá là một **thẻ (card)** cao, hiển thị:
-    - **Mô tả ngắn (≤ 280 ký tự)** và nút **“Chi tiết”** để mở rộng.
-    - Khi mở chi tiết:
-      - **Khối nội dung** (trái): trích đoạn *Thông báo đấu giá* (kèm nút **“Mở toàn văn”** đi đến liên kết tài liệu).
-      - **Khối thông tin** (phải): *Thời gian đấu giá*, *Hạn cập nhật ví đã cọc*, *Giá khởi điểm*, *Bước giá*, *Danh sách ví đã cọc* (hiển thị rút gọn, có nút **Xem thêm**).
-    - **Thanh trạng thái**: *Chưa diễn ra* / *Đang diễn ra* / *Đã kết thúc* / *Đã chốt*; kèm **Giá hiện thời** và **Ví đang dẫn** (nếu có).
-    - **Nút dưới cùng** (ai cũng thấy): **“Tham gia”** (chuyển sang chế độ chỉ xem phiên đó) và **“Trở về danh sách”**.
-- **Footer** (cuối trang):
-  - Liên kết: **Hợp đồng đấu giá**, **VIN Token**, **Swap VIN/VIC**, **Hướng dẫn**.
-  - Dòng tuyên bố ngắn gọn:  
-    > ⚖️ Giao diện phi tập trung — mọi logic & quỹ do smart contract trên **Viction** kiểm soát.  
-    > Nền tảng **không thu tiền cọc** và **không giữ tiền bán tài sản**; chỉ tạo cơ chế đấu giá **minh bạch & công bằng**.
-
-### 1.2. Khi **đã kết nối ví**
-- **Header**:
-  - Thay nút “Kết nối ví” bằng **địa chỉ ví rút gọn** và **số dư**: `VIN` và `VIC` (làm tròn 4 số thập phân, ví dụ `1.0001`).
-  - Nếu ví **chưa đăng ký**: hiện nút **“Đăng ký (0.001 VIN)”**.  
-    Nếu ví **đã đăng ký**: hiện nút **“Tạo cuộc đấu giá”**.
-- **Trong mỗi card cuộc đấu giá**:
-  - Nếu **chủ phiên** (ví tạo phiên) và **trước hạn cutoff** → thấy nút **“Cập nhật ví đã cọc”**.
-  - Nếu **ví của bạn có trong whitelist** và **phiên đang diễn ra** → thấy nút **“Bỏ giá”** (nhập số VND, UI sẽ hiển thị *Giá tối thiểu hợp lệ kế tiếp*).
-  - Sau khi **chốt phiên** → hiển thị **Ví trúng** & **Giá trúng**.
+Mọi quy tắc, tiền đặt cọc, và kết quả đấu giá đều được **hợp đồng thông minh** trên blockchain điều khiển. Nền tảng **daugia.vin** không cần **bên thứ ba giám sát**, không giữ tiền bán tài sản hay tiền đặt cọc, mà chỉ cung cấp một cơ chế đấu giá minh bạch.
 
 ---
 
-## 2) Hành trình người dùng (3 phút là hiểu)
+## 1) Khái niệm cơ bản
 
-1. **Xem danh sách** (không cần ví) → bấm **Chi tiết** để xem tài liệu gốc: *Thông báo đấu giá* & *Quy chế đấu giá*.
-2. **Kết nối ví**:
-   - Nếu **chưa đăng ký**: bấm **Đăng ký (0.001 VIN)** → từ nay ví này được phép tạo phiên/thao tác.
-   - Nếu **đã đăng ký**: có nút **Tạo cuộc đấu giá**.
-3. **Tạo cuộc đấu giá** (7 trường nhập – 6 bắt buộc):
-   - **Mô tả ngắn** (≤ 280 ký tự) — *bắt buộc*.
-   - **Thông báo đấu giá – `thongBaoUrl`** — *bắt buộc* (link tài liệu; để trên Pinata/Pitana).
-   - **Quy chế đấu giá – `quiCheUrl`** — *bắt buộc* (link tài liệu).
-   - **Thời gian đấu giá** (bắt đầu & kết thúc) — *bắt buộc* (UI nhập `dd/mm/yyyy` + giờ 24h).
-   - **Hạn cập nhật ví đã cọc** (*whitelist cutoff*) — *bắt buộc* (sau mốc này **khóa** cập nhật danh sách ví).
-   - **Giá khởi điểm (VND)** — *bắt buộc* (UI hiển thị `100.000.000` thay vì `100000000`).
-   - **Bước giá (VND)** — *bắt buộc*.
-   - Bấm **Đăng** → ký ví & thu **0.001 VIN** → phiên xuất hiện trong danh sách.
-4. **Cập nhật ví đã cọc** (chủ phiên, *trước cutoff*): thêm/bớt địa chỉ ví → đảm bảo chỉ người đã cọc mới có nút **Bỏ giá**.
-5. **Bỏ giá** (chỉ ví trong whitelist, *khi phiên đang diễn ra*):
-   - Quy tắc: **Giá mới ≥ Giá hiện thời + Bước giá**.
-   - Nếu 2 người “nhập cùng 1 giá”, giao dịch nào vào blockchain **trước** sẽ **thắng**; giao dịch đến **sau** sẽ **bị từ chối** (chuẩn on-chain).
-6. **Chốt phiên** (*finalize*, ai cũng bấm được, **không thu phí**):
-   - Nếu có bỏ giá hợp lệ → công bố **Ví trúng** & **Giá trúng**.
-   - Nếu **không có bỏ giá** → phiên **thất bại**.
+- **VIC**: đồng tiền gốc (native coin) của mạng **Viction**, dùng để **trả phí gas** khi ký giao dịch trên mạng blockchain này.
+- **VIN**: token **ERC-20** trên **Viction** (18 chữ số thập phân), dùng để trả phí nền tảng **0.001 VIN** cho các thao tác như đăng ký, tạo phiên đấu giá, cập nhật whitelist và bỏ giá.
+- **Ví MetaMask**: là ví điện tử giúp bạn lưu trữ **private key** (chìa khoá riêng), thực hiện ký giao dịch và tương tác với các hợp đồng thông minh trên blockchain. Khuyến nghị sử dụng **MetaMask** trên **trình duyệt** hoặc **ứng dụng điện thoại**.
 
 ---
 
-## 3) Quy tắc rõ ràng (để không tranh luận lại)
+## 2) Chuẩn bị ví (MetaMask)
 
-- **Phí nền tảng**: **0.001 VIN** cho 4 hành động thay đổi trạng thái:
-  1) Đăng ký (mỗi ví **chỉ 1 lần**), 2) Tạo phiên, 3) Cập nhật whitelist, 4) Bỏ giá.  
-  **Finalize** miễn phí để khuyến khích chốt.
-- **Ví nhận phí**: **ví deployer** (nhận trực tiếp), **không thay đổi**.
-- **Đơn vị đấu giá**: **VND (đồng)** → lưu **số nguyên**, **không** có thập phân.
-- **Thời gian** (UI `dd/mm/yyyy` + 24h, contract lưu epoch giây):  
-  `now < whitelistCutoff ≤ auctionStart < auctionEnd`
-- **Tài liệu**: `thongBaoUrl` & `quiCheUrl` là **bắt buộc** và **bất biến** sau khi tạo (đảm bảo minh bạch).
-- **Whitelist**: chỉ **chủ phiên** cập nhật, **trước cutoff**; có thể *add/remove* để sửa sai, sau cutoff **khóa vĩnh viễn**.
-- **Bỏ giá**: chỉ trong khoảng **[start, end)** và chỉ cho ví trong whitelist.
-- **Hiển thị VIN≈USD**: chỉ là **thông tin tham khảo** (lấy VIC/USDT×100), **không** ảnh hưởng on-chain.
+### 2.1 Cài đặt MetaMask
+Để sử dụng **daugia.vin**, bạn cần cài đặt ví **MetaMask**:
+- **Máy tính**: Cài tiện ích mở rộng **MetaMask** cho **Chrome**, **Brave** hoặc **Edge**.
+- **Điện thoại**: Cài ứng dụng **MetaMask** trên **iOS** hoặc **Android**.
 
----
+### 2.2 Tạo ví mới
+1. Mở **MetaMask** → chọn **Tạo ví mới**.
+2. Đặt mật khẩu **mạnh** cho ứng dụng.
+3. **Ghi lại 12/24 từ khoá bảo mật** (Seed Phrase). Đây là cách duy nhất để khôi phục ví, **không chụp ảnh**, **không lưu trên cloud**.
+4. Xác nhận lại thứ tự từ khoá, hoàn tất.
 
-## 4) Những gì **không** làm (phạm vi ngoài sản phẩm)
-- Không thu/giữ tiền đặt cọc hay tiền bán tài sản.
-- Không xử lý thanh toán/hoàn tiền/ủy nhiệm chi.
-- Không cho phép sửa **tài liệu gốc** sau khi tạo phiên (nếu cần, có thể thêm tài liệu đính chính ở tương lai; bản gốc vẫn giữ nguyên).
+### 2.3 Nhập lại ví đã có
+Nếu bạn đã có ví MetaMask, bạn có thể nhập ví bằng cách:
+1. Chọn **Import wallet** → nhập **12/24 từ khoá bảo mật** theo đúng thứ tự.
+2. Đặt mật khẩu cho ứng dụng mới.
 
----
+> **Lưu ý quan trọng**: Không chia sẻ **Seed Phrase** với bất kỳ ai, và không nhập vào trang web không đáng tin cậy.
 
-## 5) Từ ngữ dễ hiểu
-- **Whitelist**: Danh sách ví **được phép** bỏ giá (đã đặt cọc theo quy chế; nền tảng chỉ ghi nhận do **chủ phiên** cập nhật).
-- **Cutoff**: Hạn chót **khóa** cập nhật whitelist để đảm bảo minh bạch trước giờ đấu giá.
-- **Finalize** (*chốt phiên*): Công bố kết quả sau khi kết thúc thời gian đấu giá.
-
----
-
-## 6) Yêu cầu kỹ thuật cốt lõi (dev đọc là code được ngay)
-
-### 6.1. Chuỗi & token
-- **Network**: Viction Mainnet, Chain ID `88`, RPC `https://rpc.viction.xyz`, Explorer `https://vicscan.xyz`.
-- **VIN** (token phí): `0x941F63807401efCE8afe3C9d88d368bAA287Fac4`, **decimals 18**.
-- **VIC** (gas): **decimals 18**.
-
-### 6.2. Hợp đồng (tên dự kiến `DauGia`)
-- **Phí VIN mỗi hành động**: `FEE = 0.001 * 10^18`.
-- **feeReceiver**: địa chỉ deployer (bất biến).
-- **Cấu trúc phiên** (tóm lược):
-```solidity
-struct Auction {
-  address organizer;
-  string  summary;           // ≤ 280 ký tự
-  string  thongBaoUrl;       // ≤ 512 ký tự, bất biến
-  string  quiCheUrl;         // ≤ 512 ký tự, bất biến
-  uint40  whitelistCutoff;   // epoch seconds
-  uint40  auctionStart;      // epoch seconds
-  uint40  auctionEnd;        // epoch seconds
-  uint128 startPriceVND;     // VND
-  uint128 stepVND;           // VND
-  uint128 currentPriceVND;   // VND
-  address currentLeader;     // ví đang dẫn
-  bool    finalized;         // đã chốt
-  bool    success;           // có người thắng hay thất bại
-}
-````
-
-**Hàm ghi:**
-
-* `register()` — thu **0.001 VIN** (mỗi ví **1 lần**).
-* `createAuction(AuctionInit)` — thu **0.001 VIN**.
-* `updateWhitelist(uint256 id, address[] addrs, address[] removes)` — thu **0.001 VIN**; chỉ **organizer**; chỉ **trước cutoff**; giới hạn **≤ 200** địa chỉ/lần để an toàn gas.
-* `placeBid(uint256 id, uint128 amountVND)` — thu **0.001 VIN**; chỉ **whitelist**; chỉ trong **\[start, end)**; điều kiện `amountVND ≥ currentPrice + step`.
-* `finalize(uint256 id)` — **miễn phí**; ai cũng gọi được sau `auctionEnd`.
-
-**Hàm view/UI:**
-
-* `isRegistered(address user) → bool`
-* `getAuction(uint256 id) → Auction`
-* `isWhitelisted(uint256 id, address user) → bool`
-* `getMinNextBid(uint256 id) → uint128` (trả về `currentPrice + step`, hoặc `startPrice` nếu chưa có bid)
-* `getStatus(uint256 id) → uint8` (`0: NotStarted, 1: Live, 2: Ended, 3: Finalized`)
-
-**Sự kiện:**
-
-```solidity
-event Registered(address user);
-event AuctionCreated(
-  uint256 indexed id, address indexed organizer,
-  uint40 whitelistCutoff, uint40 start, uint40 end,
-  uint128 startPriceVND, uint128 stepVND,
-  string thongBaoUrl, string quiCheUrl
-);
-event WhitelistUpdated(uint256 indexed id, address[] added, address[] removed);
-event BidPlaced(uint256 indexed id, address indexed bidder, uint128 amountVND, uint40 ts);
-event Finalized(uint256 indexed id, address winner, uint128 priceVND, uint40 ts, bool success);
-```
-
-**Ràng buộc/lỗi (gợi ý):**
-
-* Thời gian: `InvalidSchedule`, `WhitelistClosed`
-* Phí VIN: `FeeNotPaid` (thiếu/allowance không đủ)
-* Bỏ giá: `BidTooLow`, `NotWhitelisted`, `NotLive`
-* Đã chốt: `FinalizedAlready`
-* Sửa tài liệu: `ImmutableDocs`
-
-### 6.3. Frontend (3 file tĩnh)
-
-* **`index.html`** — giao diện & bố cục 1 cột, responsive.
-* **`style.css`** — tối giản, chữ rõ, nút lớn, dễ bấm trên mobile.
-* **`app.js`** — dùng `ethers.js`; logic:
-
-  * Kết nối ví, lấy số dư VIN/VIC (hiển thị 4 số thập phân).
-  * Lấy **VIC/USDT** từ **Binance API**, nhân 100 → hiển thị `1 VIN ≈ X.XX USD`.
-  * Tìm kiếm kiểu Google (lọc theo từ khóa + trạng thái).
-  * Hiển thị danh sách phiên, trạng thái, nút theo vai trò.
-  * Trước 4 hành động ký ví (**đăng ký / tạo phiên / cập nhật whitelist / bỏ giá**):
-
-    * Đảm bảo `approve` VIN đủ **0.001 VIN**.
-    * **Gas policy “mượt”**: `gasLimit = estimateGas × 2.0` (fallback cao); nếu EIP-1559, cộng \~**+25%** `maxFeePerGas` và `maxPriorityFeePerGas`.
-  * Trước khi ký **bỏ giá**: gọi `getMinNextBid()` để disable nút nếu < mức tối thiểu.
+### 2.4 Bảo mật & kế hoạch thừa kế ví
+- **Không ai ngoài bạn** được phép biết **Seed Phrase** của ví khi bạn còn sống.
+- Gợi ý cách bảo mật:
+  - **Viết seed phrase vào sổ giấy/thép** và **niêm phong** để trong **két sắt**.
+  - **Chia đôi seed phrase** và giữ ở các địa điểm khác nhau, chỉ người thân sau khi bạn qua đời mới có thể tìm thấy và ghép lại.
+  - Đảm bảo **không chia sẻ Seed Phrase qua chat, email**.
 
 ---
 
-## 7) Kiểm thử & chấp nhận (Acceptance Checklist)
+## 3) Thêm mạng Viction và token VIN vào ví MetaMask
 
-* [ ] Tạo phiên hợp lệ (đủ 7 trường, 2 URL bắt buộc; ràng buộc thời gian đúng).
-* [ ] Cập nhật whitelist *trước cutoff* (thêm/bớt), *sau cutoff* bị khóa.
-* [ ] Bỏ giá:
+### 3.1 Thêm mạng Viction
+1. Mở **MetaMask** → chọn **Cài đặt** → **Mạng** → **Thêm mạng**.
+2. Nhập thông tin sau:
+   - **Tên mạng**: Viction Mainnet
+   - **URL RPC**: `https://rpc.viction.xyz`
+   - **Chain ID**: `88`
+   - **Ký hiệu đồng tiền**: `VIC`
+   - **Explorer**: `https://vicscan.xyz`
+   
+Lưu lại và chọn **Viction** khi kết nối với dApp.
 
-  * [ ] Giá đủ điều kiện (≥ min) → **thành công**.
-  * [ ] Giá thấp hơn min → **bị từ chối** (thông báo rõ).
-  * [ ] Hai giao dịch “cùng giá” → giao dịch vào **trước** thắng; giao dịch vào sau **bị từ chối**.
-* [ ] Chốt phiên (`finalize`):
-
-  * [ ] Có bid → hiển thị **Ví trúng** & **Giá trúng**.
-  * [ ] Không có bid → phiên **thất bại**.
-* [ ] Giao diện:
-
-  * [ ] Danh sách 1 cột (desktop & mobile), nội dung dài đọc thoải mái.
-  * [ ] Tìm kiếm kiểu Google hoạt động mượt.
-  * [ ] Header hiển thị đúng số dư & giá VIN≈USD.
-  * [ ] Nút theo vai trò hiển thị đúng (Đăng ký/Tạo phiên/Cập nhật ví đã cọc/Bỏ giá).
-* [ ] Phí:
-
-  * [ ] 4 hành động đều thu **0.001 VIN** về ví deployer.
-  * [ ] `finalize` không thu phí.
-* [ ] Không có đường tắt để sửa **thông báo/quy chế** sau khi tạo.
+### 3.2 Thêm token VIN
+1. Vào **MetaMask** → **Import Tokens** → **Custom Token**.
+2. Nhập thông tin token VIN:
+   - **Địa chỉ token**: `0x941F63807401efCE8afe3C9d88d368bAA287Fac4`
+   - **Biểu tượng**: `VIN`
+   - **Số thập phân**: `18`
+3. Bấm **Add Token** để thêm vào ví.
 
 ---
 
-## 8) Cách phối hợp triển khai (bạn không cần biết code)
+## 4) Mua và nạp VIC, VIN
 
-1. Bạn thuê **AWS (Ubuntu)**.
-2. Mình gửi **từng lệnh một** (cài Node/Hardhat, cấu hình `.env`, deploy, verify…).
+### 4.1 Mua VIC và VIN
+- **Mua VIC**: Bạn có thể mua VIC trên các sàn giao dịch như **Binance** hoặc **MEXC**.
+- **Mua VIN**: Bạn có thể mua VIN trên các sàn hỗ trợ **VIC/USDT** hoặc trực tiếp trên nền tảng **daugia.vin**.
 
-   * Bạn chạy lệnh → **chụp màn hình** trả lại → mình đưa **lệnh tiếp theo**.
-3. Sau khi deploy & verify xong, mình bàn giao **ABI.json** và lần lượt 3 file **`index.html`** → **`style.css`** → **`app.js`** (mỗi lần một file để bạn copy).
-4. Bạn đẩy lên GitHub Pages trỏ domain **daugia.vin** → **sử dụng ngay**.
+### 4.2 Rút VIC về ví MetaMask
+Sau khi mua VIC, bạn cần **rút** về ví MetaMask để sử dụng:
+1. Tại **Binance/MEXC** → chọn **Rút tiền**.
+2. Chọn **mạng Viction** (VIC) và nhập **địa chỉ ví MetaMask**.
+3. **Xác nhận** và kiểm tra **số dư VIC** trong MetaMask.
 
 ---
 
-## 9) Ghi chú cuối
+## 5) Sử dụng **daugia.vin**
 
-* **Ngôn ngữ UI**: 100% **Tiếng Việt**.
-* **Định dạng thời gian UI**: 24h; **dd/mm/yyyy**.
-* **Độ dài**: `summary ≤ 280` ký tự; URL ≤ `512` ký tự.
-* **VIN & VIC** đều **18 thập phân**. VND lưu **số nguyên** (không thập phân).
+### 5.1 Kết nối ví
+1. Truy cập **daugia.vin** trên trình duyệt.
+2. Bấm **Kết nối ví**, chọn **MetaMask** và cho phép **kết nối**.
 
+### 5.2 Đăng ký
+- Sau khi kết nối ví, bấm **Đăng ký** (một lần duy nhất) để hệ thống yêu cầu **ký giao dịch** và thu phí **0.001 VIN**.
+
+### 5.3 Tạo cuộc đấu giá
+1. Bấm **Tạo cuộc đấu giá**.
+2. Điền thông tin:
+   - **Mô tả tài sản** (≤ 280 ký tự).
+   - **Link Thông báo** (bắt buộc), **Link Quy chế** (bắt buộc).
+   - **Thời gian** đấu giá: **Bắt đầu** và **Kết thúc** (định dạng 24h, GMT+7).
+   - **Giá khởi điểm** và **Bước giá** (đồng).
+3. Ký giao dịch và **nộp phí**.
+
+### 5.4 Cập nhật danh sách ví đã cọc (whitelist)
+- Bấm **Cập nhật ví đã cọc** để thêm/gỡ ví vào whitelist trước **cutoff**.  
+- Ký giao dịch và thu **0.001 VIN**.
+
+### 5.5 Bỏ giá
+- Khi cuộc đấu giá bắt đầu, bạn có thể **bỏ giá** nếu ví của bạn có trong whitelist và chưa hết thời gian.
+- Mỗi lần bỏ giá, bạn phải **đặt giá cao hơn giá hiện tại** (theo bước giá).
+- Mức giá hợp lệ:
+   - Nếu **chưa có người dẫn**: >= **Giá khởi điểm**.
+   - Nếu **đã có người dẫn**: >= **(Giá hiện tại + Bước giá)**.
+
+### 5.6 Chốt phiên
+- Sau khi đấu giá kết thúc, người tổ chức hoặc bất kỳ ai cũng có thể **chốt phiên**.
+- **Chốt phiên** không thu phí **0.001 VIN** (chỉ phí gas VIC).
+
+---
+
+## 6) Lỗi thường gặp & cách xử lý
+
+- **“Request already pending”**: Nếu ví báo lỗi khi thao tác, mở ứng dụng **MetaMask**, xử lý yêu cầu chờ và thử lại.  
+- **“InvalidSchedule”**: Kiểm tra thời gian nhập có đúng không (theo múi giờ GMT+7).  
+- **“BidTooLow”**: Giá bỏ thấp hơn mức tối thiểu (giá khởi điểm hoặc giá hiện tại + bước giá).  
+- **“FeeNotPaid”**: Bạn cần đảm bảo ví MetaMask đã **approve** 0.001 VIN trước khi thực hiện thao tác.
+
+---
+
+## 7) Các câu hỏi thường gặp (FAQ)
+
+**Q: Vì sao phải dùng 2 đồng tiền VIC và VIN?**  
+A: **VIC** là phí gas (dùng để ký giao dịch trên blockchain Viction), còn **VIN** là phí nền tảng (dùng để trả phí cho hệ thống khi thực hiện các hành động như đăng ký, tạo phiên, bỏ giá).
+
+**Q: Hai người có thể cùng một mức giá?**  
+A: Không, nếu có hai người cùng bỏ giá, người bỏ giá **trước** sẽ trở thành người dẫn đầu.
+
+**Q: Tài liệu (Thông báo/Quy chế) có sửa được không?**  
+A: Không. Sau khi tạo phiên đấu giá, thông báo và quy chế **không thể sửa đổi** nữa để đảm bảo tính minh bạch.
+
+---
+
+## 8) Lưu ý pháp lý
+- Bạn cần **tuân thủ các quy định pháp lý** của Việt Nam và những yêu cầu liên quan đến tiền mã hoá khi sử dụng nền tảng **daugia.vin**.
+- Mọi giao dịch liên quan đến tiền mã hoá đều có **rủi ro**. Bạn cần **tự chịu trách nhiệm** đối với quyết định của mình.
+
+---
+
+Chúc bạn sử dụng nền tảng **daugia.vin** thành công và có những trải nghiệm đấu giá minh bạch, công bằng, và dễ sử dụng.
