@@ -1,0 +1,811 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "vinToken_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "feeReceiver_",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "platformFeeVIN_",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "ALREADY_FINALIZED",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "AUCTION_ENDED",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "AUCTION_NOT_STARTED",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "BIDDER_NOT_WHITELISTED",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "BID_TOO_LOW",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "INVALID_TIME_ORDER",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NOT_ORGANIZER",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PLATFORM_FEE_REQUIRED",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "WHITELIST_CUTOFF",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "organizer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "auctionDetailCID",
+        "type": "string"
+      }
+    ],
+    "name": "AuctionCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "reasonCode",
+        "type": "uint8"
+      }
+    ],
+    "name": "AuctionFailed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "finalPriceVND",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "AuctionFinalized",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "bidder",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amountVND",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "BidPlaced",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "organizer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "profileCID",
+        "type": "string"
+      }
+    ],
+    "name": "OrganizerRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "organizer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address[]",
+        "name": "added",
+        "type": "address[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "string[]",
+        "name": "uncProofCIDs",
+        "type": "string[]"
+      }
+    ],
+    "name": "WhitelistUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "auctions",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "organizer",
+        "type": "address"
+      },
+      {
+        "internalType": "uint64",
+        "name": "startView",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "endView",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "depositStart",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "depositCutoff",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "auctionStart",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "auctionEnd",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256",
+        "name": "startingPriceVND",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minIncrementVND",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "depositAmountVND",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "currentPriceVND",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "highestBidder",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "finalized",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "failed",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "whitelistCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "auctionDetailCID",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint64",
+        "name": "startView",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "endView",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "depositStart",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "depositCutoff",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "auctionStart",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "auctionEnd",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256",
+        "name": "startingPriceVND",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minIncrementVND",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "depositAmountVND",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "auctionDetailCID",
+        "type": "string"
+      }
+    ],
+    "name": "createAuction",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeReceiver",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      }
+    ],
+    "name": "finalize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getAuction",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "organizer",
+        "type": "address"
+      },
+      {
+        "internalType": "uint64",
+        "name": "startView",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "endView",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "depositStart",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "depositCutoff",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "auctionStart",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "auctionEnd",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256",
+        "name": "startingPriceVND",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minIncrementVND",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "depositAmountVND",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "currentPriceVND",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "highestBidder",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "finalized",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "failed",
+        "type": "bool"
+      },
+      {
+        "internalType": "string",
+        "name": "auctionDetailCID",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "organizer",
+        "type": "address"
+      }
+    ],
+    "name": "getOrganizerAuctions",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getStatus",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "isWhitelisted",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "bidder",
+        "type": "address"
+      }
+    ],
+    "name": "isWhitelistedBidder",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "organizerProfileCID",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "bidAmountVND",
+        "type": "uint256"
+      }
+    ],
+    "name": "placeBid",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "platformFeeVIN",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "profileCID",
+        "type": "string"
+      }
+    ],
+    "name": "registerOrganizer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "registeredOrganizer",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newReceiver",
+        "type": "address"
+      }
+    ],
+    "name": "setFeeReceiver",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "newFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "setPlatformFeeVIN",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newVin",
+        "type": "address"
+      }
+    ],
+    "name": "setVinToken",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalAuctions",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[]",
+        "name": "bidders",
+        "type": "address[]"
+      },
+      {
+        "internalType": "string[]",
+        "name": "uncProofCIDs",
+        "type": "string[]"
+      }
+    ],
+    "name": "updateWhitelist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "version",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vinToken",
+    "outputs": [
+      {
+        "internalType": "contract IERC20",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
