@@ -1,145 +1,256 @@
-# Mô Tả Chi Tiết Nền Tảng DauGia.vin
+# daugia.vin — Bản mô tả sản phẩm (Product Spec)
 
-**daugia.vin** là nền tảng đấu giá minh bạch và công bằng, phục vụ người dùng tại Việt Nam, sử dụng công nghệ blockchain **Viction (VIC)**. Mục tiêu của nền tảng là tạo ra các cuộc đấu giá minh bạch, nơi thông tin được công khai và không có sự can thiệp của bất kỳ tổ chức trung gian nào. Nền tảng này không thu tiền đặt cọc hay tiền bán tài sản mà chỉ thực hiện việc tạo ra các cuộc đấu giá minh bạch, giúp công chúng có thể tham gia và theo dõi các cuộc đấu giá một cách rõ ràng và công bằng.
-
-## Các Thành Phần Chính Của Nền Tảng
-
-### 1. Người Dùng
-Người dùng có thể tham gia vào nền tảng mà không cần kết nối ví, nhưng nếu muốn thực hiện các hành động như đăng ký tài khoản, tạo cuộc đấu giá, bỏ giá, họ sẽ cần kết nối ví MetaMask, chuyển mạng viction (https://rpc.viction.xyz) (https://vicscan.xyz) (chain ID 0x58 or 88) (Symbol: VIC); trong ví cần có VIC để trả gas và VIN để trả phí. 
-
-#### Mỗi người dùng có thể thực hiện các thao tác sau:
-- **Đăng ký tài khoản**: Mỗi ví chỉ cần trả **0.001 VIN** duy nhất để đăng ký tài khoản trên nền tảng.
-- **Tạo cuộc đấu giá**: Người dùng đã đăng ký có thể tạo cuộc đấu giá mới.
-- **Tham gia đấu giá**: Người dùng có thể tham gia vào các cuộc đấu giá đang diễn ra bằng cách bỏ giá.
-- **Cập nhật danh sách ví đã đặt cọc**: Chỉ có chủ cuộc đấu giá mới có quyền này.
+> **Mục tiêu:** Nền tảng đấu giá **minh bạch – công bằng – đơn giản** cho người Việt, chạy hoàn toàn bằng **smart contract trên Viction (VIC)**.  
+> **Nguyên tắc:** Nền tảng **không thu/giữ tiền đặt cọc** hay **tiền bán tài sản**. Chỉ cung cấp cơ chế tổ chức một phiên đấu giá minh bạch (tạo phiên, danh sách ví đã cọc, bỏ giá, chốt phiên).
 
 ---
 
-### 2. Các Mẫu Thông Tin Cần Nhập Khi Tạo Cuộc Đấu Giá
-Khi tạo một cuộc đấu giá, tổ chức (người tạo cuộc đấu giá) sẽ điền vào một mẫu với các thông tin bắt buộc và tùy chọn như sau:
+## 1) Sản phẩm trông như thế nào sau khi hoàn thành?
 
-1. **Mô Tả Ngắn Gọn Tài Sản Đấu Giá** (Bắt buộc):
-   - Mô tả ngắn gọn về tài sản đấu giá sẽ được hiển thị ngay trên đầu mỗi cuộc đấu giá. Ví dụ: Căn nhà số X đường giải phóng hà nội. Diện tích đất 60 m2; diện tích xây dựng 150 m2; giấy tờ pháp lý: sổ đỏ.
+### 1.1. Khi **chưa kết nối ví**
+- **Header** (trên cùng):
+  - **Logo + Slogan** bên trái: `daugia.vin — minh bạch trên blockchain`.
+  - Bên phải có nút **“Kết nối ví”** và một chip nhỏ hiển thị **`1 VIN ≈ X.XX USD`** (làm tròn 2 số thập phân).
+- **Thanh tìm kiếm** kiểu Google:
+  - 1 ô nhập từ khóa (tìm theo **mô tả ngắn** hoặc **địa chỉ ví tổ chức**).
+  - Nhấn **Enter** để tìm, có nút **X** để xóa từ khóa. Có thể có bộ lọc nhanh: *Chưa diễn ra / Đang diễn ra / Đã kết thúc*.
+- **Danh sách cuộc đấu giá** (bố cục **1 cột** cả trên máy tính & điện thoại):
+  - Mỗi cuộc đấu giá là một **thẻ (card)** cao, hiển thị:
+    - **Mô tả ngắn (≤ 280 ký tự)** và nút **“Chi tiết”** để mở rộng.
+    - Khi mở chi tiết:
+      - **Khối nội dung** (trái): trích đoạn *Thông báo đấu giá* (kèm nút **“Mở toàn văn”** đi đến liên kết tài liệu).
+      - **Khối thông tin** (phải): *Thời gian đấu giá*, *Hạn cập nhật ví đã cọc*, *Giá khởi điểm*, *Bước giá*, *Danh sách ví đã cọc* (hiển thị rút gọn, có nút **Xem thêm**).
+    - **Thanh trạng thái**: *Chưa diễn ra* / *Đang diễn ra* / *Đã kết thúc* / *Đã chốt*; kèm **Giá hiện thời** và **Ví đang dẫn** (nếu có).
+    - **Nút dưới cùng** (ai cũng thấy): **“Tham gia”** (chuyển sang chế độ chỉ xem phiên đó) và **“Trở về danh sách”**.
+- **Footer** (cuối trang):
+  - Liên kết: **Hợp đồng đấu giá**, **VIN Token**, **Swap VIN/VIC**, **Hướng dẫn**.
+  - Dòng tuyên bố ngắn gọn:  
+    > ⚖️ Giao diện phi tập trung — mọi logic & quỹ do smart contract trên **Viction** kiểm soát.  
+    > Nền tảng **không thu tiền cọc** và **không giữ tiền bán tài sản**; chỉ tạo cơ chế đấu giá **minh bạch & công bằng**.
 
-2. **Thông Báo Đấu Giá** (Bắt buộc):
-   - Đây là **link** tới tài liệu qui thông báo đấu giá của cuộc đấu giá. thông báo này được chuẩn bị và lưu trữ trên Pitana, và chỉ cần **dán link vào đây**.
-
-3. **Qui Chế Đấu Giá** (Bắt buộc):
-   - Đây là **link** tới tài liệu qui chế đấu giá của cuộc đấu giá. Quy chế này được chuẩn bị và lưu trữ trên Pitana, và chỉ cần **dán link vào đây**.
-
-4. **Thời Gian Đấu Giá** (Bắt buộc):
-   - Thời gian **bắt đầu** và **kết thúc** của cuộc đấu giá phải được khai báo bằng định dạng **dd/mm/yyyy và giờ 24h**. Điều này sẽ giúp hệ thống xác định thời gian bắt đầu và kết thúc của cuộc đấu giá.
-
-5. **Thời Gian Cập Nhật Ví Đã Đặt Cọc** (Bắt buộc):
-   - Thời gian **cập nhật ví đã đặt cọc**: Địa chỉ ví của người tham gia đấu giá sẽ được người tạo cuộc đấu giá cập nhật trước khi thời gian **cutoff** kết thúc.
-
-6. **Giá Khởi Điểm** (Bắt buộc):
-   - Mức **giá khởi điểm** của tài sản đấu giá (được nhập dưới dạng VND), và phần giá này sẽ được **hiển thị với dấu chấm** phân cách số (ví dụ: 100.000.000 VND).
-
-7. **Bước Giá** (Bắt buộc):
-   - **Bước giá tối thiểu**: Số tiền mà mỗi người tham gia phải bỏ giá cao hơn người trước ít nhất **1 bước giá**.
-
----
-
-### 3. Quy Trình Tạo Cuộc Đấu Giá
-- Sau khi nhập đầy đủ các thông tin, người tổ chức sẽ bấm **nút “Đăng”**.
-- Hệ thống sẽ gọi **ký ví** và thu **0.001 VIN** để tạo cuộc đấu giá.
-- Cuộc đấu giá sẽ được tạo thành công và hiển thị trên nền tảng.
-
----
-
-### 4. Các Nút và Quyền Hạn
-- **Nút “Tham Gia”**: Mọi người dùng đều có thể tham gia cuộc đấu giá, dù chưa kết nối ví. (Nút này hiện dưới mỗi cuộc đấu giá)
-- **Nút “Trở về danh sách”**: Quay lại danh sách các cuộc đấu giá.
-- **Nút “Đăng Ký”**: Nếu ví chưa đăng ký tài khoản, nút này sẽ hiển thị và yêu cầu thanh toán phí **0.001 VIN** để đăng ký tài khoản.
-- **Nút “Tạo Cuộc Đấu Giá”**: Sau khi đăng ký thành công, người dùng có thể tạo cuộc đấu giá mới.
-- **Nút “Bỏ Giá”**: Nếu người dùng đã đăng ký và có trong danh sách whitelist, họ sẽ thấy nút này để tham gia đấu giá.
-- **Nút “Cập Nhật Ví Đã Đặt Cọc”**: Chủ cuộc đấu giá có thể cập nhật danh sách ví đã đặt cọc, nhưng chỉ trong thời gian quy định.
+### 1.2. Khi **đã kết nối ví**
+- **Header**:
+  - Thay nút “Kết nối ví” bằng **địa chỉ ví rút gọn** và **số dư**: `VIN` và `VIC` (làm tròn 4 số thập phân, ví dụ `1.0001`).
+  - Nếu ví **chưa đăng ký**: hiện nút **“Đăng ký (0.001 VIN)”**.  
+    Nếu ví **đã đăng ký**: hiện nút **“Tạo cuộc đấu giá”**.
+- **Trong mỗi card cuộc đấu giá**:
+  - Nếu **chủ phiên** (ví tạo phiên) và **trước hạn cutoff** → thấy nút **“Cập nhật ví đã cọc”**.
+  - Nếu **ví của bạn có trong whitelist** và **phiên đang diễn ra** → thấy nút **“Bỏ giá”** (nhập số VND, UI sẽ hiển thị *Giá tối thiểu hợp lệ kế tiếp*).
+  - Sau khi **chốt phiên** → hiển thị **Ví trúng** & **Giá trúng**.
 
 ---
 
-### 5. Các Thông Tin Hiển Thị Trong Mỗi Cuộc Đấu Giá
-- **Mô Tả Tài Sản**: Hiển thị mô tả ngắn gọn tài sản đấu giá.
-- **Thông Báo Đấu Giá**: Hiển thị thông tin chi tiết về cuộc đấu giá từ thông báo mà người tạo cuộc đấu giá đã cung cấp.
-- **Qui chế Đấu Giá**: Hiển thị thông tin chi tiết về qui chế đấu giá từ qui chế đấu giá mà người tạo cuộc đấu giá đã cung cấp.
-- **Thời Gian Đấu Giá**: Hiển thị thời gian bắt đầu và kết thúc của cuộc đấu giá.
-- **Danh Sách Ví Đã Đặt Cọc**: Hiển thị những ví đã tham gia và được người tổ chức thêm vào whitelist.
-- **Giá Hiện Tại**: Hiển thị giá hiện tại của tài sản trong cuộc đấu giá.
-- **Ví Đang Dẫn**: Hiển thị ví đang đặt giá cao nhất.
-- **Nút Tham Gia / Trở Về**: Cung cấp cho người dùng khả năng tham gia hoặc quay lại danh sách các cuộc đấu giá.
+## 2) Hành trình người dùng (3 phút là hiểu)
+
+1. **Xem danh sách** (không cần ví) → bấm **Chi tiết** để xem tài liệu gốc: *Thông báo đấu giá* & *Quy chế đấu giá*.
+2. **Kết nối ví**:
+   - Nếu **chưa đăng ký**: bấm **Đăng ký (0.001 VIN)** → từ nay ví này được phép tạo phiên/ thao tác.
+   - Nếu **đã đăng ký**: có nút **Tạo cuộc đấu giá**.
+3. **Tạo cuộc đấu giá** (7 trường nhập – 6 bắt buộc):
+   - **Mô tả ngắn** (≤ 280 ký tự) — *bắt buộc*.
+   - **Thông báo đấu giá – `thongBaoUrl`** — *bắt buộc* (link tài liệu; bạn để trên Pinata/Pitana).
+   - **Quy chế đấu giá – `quiCheUrl`** — *bắt buộc* (link tài liệu).
+   - **Thời gian đấu giá** (bắt đầu & kết thúc) — *bắt buộc* (UI nhập `dd/mm/yyyy` + giờ 24h).
+   - **Hạn cập nhật ví đã cọc** (*whitelist cutoff*) — *bắt buộc* (sau mốc này **khóa** cập nhật danh sách ví).
+   - **Giá khởi điểm (VND)** — *bắt buộc* (UI hiển thị 100.000.000 thay vì 100000000).
+   - **Bước giá (VND)** — *bắt buộc*.
+   - Bấm **Đăng** → ký ví & thu **0.001 VIN** → phiên xuất hiện trong danh sách.
+4. **Cập nhật ví đã cọc** (chủ phiên, *trước cutoff*): thêm/bớt địa chỉ ví → đảm bảo chỉ người đã cọc mới có nút **Bỏ giá**.
+5. **Bỏ giá** (chỉ ví trong whitelist, *khi phiên đang diễn ra*):
+   - Quy tắc: **Giá mới ≥ Giá hiện thời + Bước giá**.
+   - Nếu 2 người “nhập cùng 1 giá”, giao dịch nào vào blockchain **trước** sẽ **thắng**; giao dịch đến **sau** sẽ **bị từ chối** (chuẩn on-chain).
+6. **Chốt phiên** (*finalize*, ai cũng bấm được, **không thu phí**):
+   - Nếu có bỏ giá hợp lệ → công bố **Ví trúng** & **Giá trúng**.
+   - Nếu **không có bỏ giá** → phiên **thất bại**.
 
 ---
 
-### 6. Minh Bạch và Công Bằng
-- Nền tảng sẽ minh bạch toàn bộ các cuộc đấu giá, cho phép người dùng **xem chi tiết các cuộc đấu giá** mà không cần phải kết nối ví. Mọi thông tin về giá, thời gian đấu giá, ví đã đặt cọc đều được công khai và không thể thay đổi.
-- Mọi hành động trên nền tảng, từ đăng ký đến tạo đấu giá, đều yêu cầu thanh toán phí **0.001 VIN**, giúp đảm bảo tính công bằng và không có sự lạm dụng.
+## 3) Quy tắc rõ ràng (để không tranh luận lại)
+
+- **Phí nền tảng**: **0.001 VIN** cho 4 hành động thay đổi trạng thái:
+  1) Đăng ký (mỗi ví **chỉ 1 lần**), 2) Tạo phiên, 3) Cập nhật whitelist, 4) Bỏ giá.  
+  **Finalize** miễn phí để khuyến khích chốt.
+- **Ví nhận phí**: **ví deployer** (nhận trực tiếp), **không thay đổi**.
+- **Đơn vị đấu giá**: **VND (đồng)** → lưu **số nguyên**, **không** có thập phân.
+- **Thời gian** (UI `dd/mm/yyyy` + 24h, contract lưu epoch giây):  
+  `now < whitelistCutoff ≤ auctionStart < auctionEnd`
+- **Tài liệu**: `thongBaoUrl` & `quiCheUrl` là **bắt buộc** và **bất biến** sau khi tạo (đảm bảo minh bạch).
+- **Whitelist**: chỉ **chủ phiên** cập nhật, **trước cutoff**; có thể *add/remove* để sửa sai, sau cutoff **khóa vĩnh viễn**.
+- **Bỏ giá**: chỉ trong khoảng **[start, end)** và chỉ cho ví trong whitelist.
+- **Hiển thị VIN≈USD**: chỉ là **thông tin tham khảo** (lấy VIC/USDT×100), **không** ảnh hưởng on-chain.
 
 ---
 
-## **Giao Diện Nền Tảng DauGia.vin**
-
-### **1. Giao Diện Khi Người Dùng Chưa Kết Nối Ví**
-Khi người dùng chưa kết nối ví, giao diện của nền tảng sẽ bao gồm các phần sau:
-
-#### **1.1. Header (Phần Đầu Trang)**
-- **Logo và Câu Slogan Trình Duyệt**:
-  - Logo nền tảng **DauGia.vin** và câu slogan hiển thị trên tiêu đề trình duyệt:  
-    **DauGia.vin - Minh bạch trên blockchain**
-  
-- **Logo và Câu Slogan Trang Web**:
-  - Logo **DauGia.vin** sẽ hiển thị ở góc trái trang web, kèm theo câu slogan **“DauGia.vin - Minh bạch trên blockchain”**.
-  
-- **Nút “Kết Nối Ví”**:
-  - Nút này sẽ hiển thị ở góc phải của header khi người dùng chưa kết nối ví.
-  
-- **Hiển Thị Giá VIN Theo USD**:
-  - Cạnh nút “Kết Nối Ví” sẽ là hiển thị giá **VIN theo USD**.  
-  Ví dụ: **1 VIN = 22.67 USD** (làm tròn 2 chữ số thập phân).
-
-#### **1.2. Thanh Tìm Kiếm (Search Bar)**
-- **Ô Tìm Kiếm**: Cho phép người dùng tìm kiếm các cuộc đấu giá theo từ khóa.
-
-#### **1.3. Hiển Thị Các Cuộc Đấu Giá**
-- Các cuộc đấu giá sẽ được hiển thị dưới dạng **2 cột** và **2 hàng**:
-  - **Hàng đầu tiên**: **Tóm tắt ngắn gọn tài sản đấu giá** và **nút Chi Tiết**.
-  - **Hàng thứ hai**: **Thông tin chi tiết** của cuộc đấu giá.
-  Mỗi cuộc đấu giá sẽ có hai nút **Tham Gia** và **Trở về danh sách**.
-
-#### **1.4. Footer (Chân Trang)**
-- **Liên Kết Hợp Đồng**, **VIN Token**, **Swap VIN/VIC**, **Hướng Dẫn**.
+## 4) Những gì **không** làm (phạm vi ngoài sản phẩm)
+- Không thu/giữ tiền đặt cọc hay tiền bán tài sản.
+- Không xử lý thanh toán/hoàn tiền/ủy nhiệm chi.
+- Không cho phép sửa **tài liệu gốc** sau khi tạo phiên (chỉ có thể thêm tài liệu đính chính ở bản tương lai nếu cần, nhưng bản gốc vẫn giữ nguyên).
 
 ---
 
-### **2. Giao Diện Khi Người Dùng Đã Kết Nối Ví**
-Khi người dùng đã kết nối ví, giao diện sẽ có thêm thông tin ví của người dùng và các chức năng khác như sau:
-
-#### **2.1. Header (Phần Đầu Trang)**
-- **Hiển Thị Địa Chỉ Ví và Số Dư**:
-  - Sau khi người dùng kết nối ví, địa chỉ ví và số dư VIN và VIC sẽ được hiển thị ở header.
-
-- **Nút “Đăng Ký” và “Tạo Cuộc Đấu Giá”**:
-  - Nếu ví chưa đăng ký: nút **Đăng Ký** sẽ hiển thị và yêu cầu người dùng thanh toán phí **0.001 VIN** để đăng ký tài khoản.
-  - Sau khi ví đã đăng ký: nút **Tạo Cuộc Đấu Giá** sẽ hiển thị thay cho nút Đăng Ký.
-
-#### **2.2. Hiển Thị Các Cuộc Đấu Giá**
-- Giao diện hiển thị các cuộc đấu giá tương tự như khi chưa kết nối ví, nhưng có thêm một số nút và chức năng:
-  - **Nút “Cập Nhật Ví Đã Cọc”**: Nếu ví là chủ cuộc đấu giá, nút này sẽ cho phép cập nhật danh sách ví đã đặt cọc.
-  - **Nút “Bỏ Giá”**: Nếu ví đã đăng ký và có trong danh sách whitelist, người dùng sẽ thấy nút này để bỏ giá vào cuộc đấu giá.
-
-#### **2.3. Footer (Chân Trang)**
-- Footer sẽ giống như khi chưa kết nối ví, nhưng có thêm phần **Địa Chỉ Ví và Số Dư**.
+## 5) Từ ngữ dễ hiểu
+- **Whitelist**: Danh sách ví **được phép** bỏ giá (vì đã đặt cọc theo quy chế; nền tảng chỉ ghi nhận do **chủ phiên** cập nhật).
+- **Cutoff**: Hạn chót **khóa** cập nhật whitelist để đảm bảo minh bạch trước giờ đấu giá.
+- **Finalize** (*chốt phiên*): Công bố kết quả sau khi kết thúc thời gian đấu giá.
 
 ---
-#### **2.4. Phụ ghi**
-- Nếu bỏ cùng giá và sát thời gian thì ví nào bỏ trước thắng. 
 
----
-### **Mục đích của file này**
-Mô tả này cung cấp thông tin đầy đủ và chi tiết để xây dựng nền tảng **daugia.vin** bao gồm code hợp đồng thông minh và làm dapp dễ dàng và chính xác.
-- Địa chỉ của token VIN trên mạng Vic: 0x941F63807401efCE8afe3C9d88d368bAA287Fac4 các hành động: đăng ký (trả phí một lần duy nhất); tạo cuộc đấu giá; cập nhật ví đã đặt cọc, bỏ giá: mỗi lần ký ví trả 0.001 VIN
-- Giá VIN theo USD hiển thị kiểu: 1 VIN = 22.45 USD (làm tròn 2 số sau dấu chấm. Cách tính giá VIN: Bằng giá VIC trên Binance x 100; code ngay trong file index.html
----
-### **Yêu cầu**
-- Code hợp đồng DauGia.sol sử dụng công cụ hardhat và máy chủ aws để đẩy hợp đồng lên mạng vic, xác minh thành công, lưu ABI
-- Code 3 file index.html; style.css và app.js để đưa lên trang trên github chạy tên miền daugia.vin
----
+## 6) Yêu cầu kỹ thuật cốt lõi (dev đọc là code được ngay)
+
+### 6.1. Chuỗi & token
+- **Network**: Viction Mainnet, Chain ID `88`, RPC `https://rpc.viction.xyz`, Explorer `https://vicscan.xyz`.
+- **VIN** (token phí): `0x941F63807401efCE8afe3C9d88d368bAA287Fac4`, **decimals 18**.
+- **VIC** (gas): **decimals 18**.
+
+### 6.2. Hợp đồng (tên dự kiến `DauGia`)
+- **Phí VIN mỗi hành động**: `FEE = 0.001 * 10^18`.
+- **feeReceiver**: địa chỉ deployer (bất biến).
+- **Cấu trúc phiên** (tóm lược):
+  ```solidity
+  struct Auction {
+    address organizer;
+    string  summary;           // ≤ 280 ký tự
+    string  thongBaoUrl;       // ≤ 512 ký tự, bất biến
+    string  quiCheUrl;         // ≤ 512 ký tự, bất biến
+    uint40  whitelistCutoff;   // epoch seconds
+    uint40  auctionStart;      // epoch seconds
+    uint40  auctionEnd;        // epoch seconds
+    uint128 startPriceVND;     // VND
+    uint128 stepVND;           // VND
+    uint128 currentPriceVND;   // VND
+    address currentLeader;     // ví đang dẫn
+    bool    finalized;         // đã chốt
+    bool    success;           // có người thắng hay thất bại
+  }
+
+Hàm ghi:
+
+register() — thu 0.001 VIN (mỗi ví 1 lần).
+
+createAuction(AuctionInit) — thu 0.001 VIN.
+
+updateWhitelist(auctionId, addrs[], removes[]) — thu 0.001 VIN; chỉ organizer; chỉ trước cutoff; giới hạn ≤ 200 địa chỉ/lần để an toàn gas.
+
+placeBid(auctionId, amountVND) — thu 0.001 VIN; chỉ whitelist; chỉ trong [start, end); điều kiện amountVND ≥ currentPrice + step.
+
+finalize(auctionId) — miễn phí; ai cũng gọi được sau auctionEnd.
+
+Hàm view/UI:
+
+isRegistered(address)
+
+getAuction(auctionId)
+
+isWhitelisted(auctionId, address)
+
+getMinNextBid(auctionId) → uint128 (trả về currentPrice + step, hoặc startPrice nếu chưa có bid)
+
+getStatus(auctionId) → uint8 (0: NotStarted, 1: Live, 2: Ended, 3: Finalized)
+
+Sự kiện:
+
+Registered(user)
+
+AuctionCreated(id, organizer, cutoff, start, end, startPrice, step, thongBaoUrl, quiCheUrl)
+
+WhitelistUpdated(id, added[], removed[])
+
+BidPlaced(id, bidder, amountVND, ts)
+
+Finalized(id, winner, priceVND, ts, success)
+
+Ràng buộc/lỗi (gợi ý):
+
+Thời gian: InvalidSchedule, WhitelistClosed
+
+Phí VIN: FeeNotPaid (thiếu/allowance không đủ)
+
+Bỏ giá: BidTooLow, NotWhitelisted, NotLive
+
+Đã chốt: FinalizedAlready
+
+Sửa tài liệu: ImmutableDocs
+
+6.3. Frontend (3 file tĩnh)
+
+index.html — giao diện & bố cục 1 cột, responsive.
+
+style.css — tối giản, chữ rõ, nút lớn, dễ bấm trên mobile.
+
+app.js — dùng ethers.js; logic:
+
+Kết nối ví, lấy số dư VIN/VIC.
+
+Lấy VIC/USDT từ Binance API, nhân 100 → hiển thị 1 VIN ≈ X.XX USD.
+
+Tìm kiếm kiểu Google (lọc theo từ khóa + trạng thái).
+
+Hiển thị danh sách phiên, trạng thái, nút theo vai trò.
+
+Trước 4 hành động ký ví (đăng ký / tạo phiên / cập nhật whitelist / bỏ giá):
+
+Đảm bảo approve VIN đủ 0.001 VIN.
+
+Gas Policy: gasLimit = estimateGas × 2.0 (fallback cao), EIP-1559 cộng ~+25% nếu có.
+
+Trước khi ký bỏ giá: gọi getMinNextBid() để disable nút nếu < mức tối thiểu.
+
+7) Kiểm thử & chấp nhận (Acceptance Checklist)
+
+ Tạo phiên hợp lệ (đủ 7 trường, 2 URL bắt buộc; ràng buộc thời gian đúng).
+
+ Cập nhật whitelist trước cutoff (thêm/bớt), sau cutoff bị khóa.
+
+ Bỏ giá:
+
+ Giá đủ điều kiện (≥ min) → thành công;
+
+ Giá thấp hơn min → bị từ chối (thông báo rõ).
+
+ Hai giao dịch “cùng giá” → giao dịch vào trước thắng; giao dịch vào sau bị từ chối.
+
+ Chốt phiên (finalize):
+
+ Có bid → hiển thị Ví trúng & Giá trúng.
+
+ Không có bid → phiên thất bại.
+
+ Giao diện:
+
+ Danh sách 1 cột (desktop & mobile), nội dung dài đọc thoải mái.
+
+ Tìm kiếm kiểu Google hoạt động mượt.
+
+ Header hiển thị đúng số dư & giá VIN≈USD.
+
+ Nút theo vai trò hiển thị đúng (Đăng ký/Tạo phiên/Cập nhật ví đã cọc/Bỏ giá).
+
+ Phí:
+
+ 4 hành động đều thu 0.001 VIN về ví deployer.
+
+ finalize không thu phí.
+
+ Không có đường tắt để sửa thông báo/quy chế sau khi tạo.
+
+8) Cách phối hợp triển khai (bạn không cần biết code)
+
+Bạn thuê AWS (Ubuntu).
+
+Mình gửi từng lệnh một (cài Node/Hardhat, cấu hình .env, deploy, verify…).
+
+Bạn chạy lệnh → chụp màn hình trả lại → mình đưa lệnh tiếp theo.
+
+Sau khi deploy & verify xong, mình bàn giao ABI.json và lần lượt 3 file index.html → style.css → app.js (mỗi lần một file để bạn copy).
+
+Bạn đẩy lên GitHub Pages trỏ domain daugia.vin → sử dụng ngay.
+
+9) Ghi chú cuối
+
+Ngôn ngữ UI: 100% Tiếng Việt.
+
+Định dạng thời gian UI: 24h; dd/mm/yyyy.
+
+Độ dài: summary ≤ 280 ký tự; URL ≤ 512 ký tự.
+
+VIN & VIC đều 18 thập phân. VND lưu số nguyên (không thập phân).
