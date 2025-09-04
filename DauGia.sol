@@ -1,401 +1,274 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+/ SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
- * DauGia.sol
- * - Mạng: VIC (Viction, chainId 88)
- * - Phí nền tảng: thu bằng token VIN (ERC20) cho mỗi thao tác on-chain (trừ finalize)
- * - Hợp đồng KHÔNG nắm giữ tiền đấu giá; mọi thanh toán/cọc xử lý off-chain. On-chain chỉ minh bạch:
- *   whitelist ví đã cọc, lịch sử đặt giá, kết quả thắng cuộc.
- *
- * TÍNH NĂNG CHÍNH
- * - Đăng ký tổ chức (bất kỳ ai): trả phí (VIN) + gas (VIC)
- * - Tạo cuộc đấu giá: lưu thông số & CID IPFS mô tả chi tiết (mô tả dài ≤ 20,000 ký tự lưu off-chain)
- * - Cập nhật whitelist ví đã đặt cọc (đến hạn cutoff)
- * - Bỏ giá (bid): chỉ ví trong whitelist & trong khung giờ phiên; giá >= current + minIncrement
- * - Kết thúc (finalize): ai cũng gọi được; công bố winner hoặc thất bại
- *
- * LƯU Ý DAPP
- * - Ai cũng xem được tất cả dữ liệu mà KHÔNG cần kết nối ví (read-only provider).
- * - Mô tả dài nhập xuống dòng/format thoải mái vì lưu trên IPFS (CID ở on-chain).
+ * DauGia.vin — Hợp đồng đấu giá minh bạch cho người Việt trên Viction.
+ * - Không thu/giữ tiền cọc hay tiền bán tài sản.
+ * - Thu phí nền tảng 0.001 VIN cho các hành động: register/create/updateWhitelist/placeBid (finalize miễn phí).
+ * - Giá đấu & bước giá dùng VND (đồng) — số nguyên, không thập phân.
+ * - Tài liệu (thongBaoUrl, quiCheUrl) là bắt buộc và bất biến sau khi tạo.
  */
+contract DauGia {
+    // ====== Lỗi tuỳ chỉnh (gas-efficient) ======
+    error NotRegistered();
+    error InvalidSchedule();
+    error ImmutableDocs();
+    error NotOrganizer();
+    error WhitelistClosed();
+    error NotLive();
+    error FinalizedAlready();
+    error NotWhitelisted();
+    error BidTooLow();
+    error FeeNotPaid();
 
-/// @notice Chuẩn ERC20 tối giản
-interface IERC20 {
-    function transferFrom(address from, address to, uint256 value) external returns (bool);
-    function balanceOf(address account) external view returns (uint256);
-    function allowance(address owner, address spender) external view returns (uint256);
-}
-
-/// @notice SafeERC20 tối giản, xử lý token không chuẩn trả về không-boolean
-library SafeERC20 {
-    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
-        (bool ok, bytes memory data) = address(token).call(
-            abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value)
-        );
-        require(ok && (data.length == 0 || abi.decode(data, (bool))), "VIN_TRANSFER_FAILED");
-    }
-}
-
-/// @notice Ownable tối giản (admin chỉ để chỉnh phí/feeReceiver/vinToken)
-abstract contract Ownable {
-    address public owner;
-    event OwnershipTransferred(address indexed from, address indexed to);
-    modifier onlyOwner() {
-        require(msg.sender == owner, "NOT_OWNER");
-        _;
-    }
-    constructor() {
-        owner = msg.sender;
-        emit OwnershipTransferred(address(0), msg.sender);
-    }
-    function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "ZERO_OWNER");
-        owner = newOwner;
-        emit OwnershipTransferred(msg.sender, newOwner);
-    }
-}
-
-/// @notice ReentrancyGuard tối giản
-abstract contract ReentrancyGuard {
-    uint256 private constant _ENTERED = 2;
-    uint256 private constant _NOT_ENTERED = 1;
-    uint256 private _status = _NOT_ENTERED;
-    modifier nonReentrant() {
-        require(_status == _NOT_ENTERED, "REENTRANT");
-        _status = _ENTERED;
-        _;
-        _status = _NOT_ENTERED;
-    }
-}
-
-contract DauGia is Ownable, ReentrancyGuard {
-    using SafeERC20 for IERC20;
-
-    // ====== Errors (revert reasons) ======
-    error PLATFORM_FEE_REQUIRED();
-    error AUCTION_NOT_STARTED();
-    error AUCTION_ENDED();
-    error BIDDER_NOT_WHITELISTED();
-    error BID_TOO_LOW();
-    error WHITELIST_CUTOFF();
-    error NOT_ORGANIZER();
-    error INVALID_TIME_ORDER();
-    error ALREADY_FINALIZED();
-
-    // ====== Events ======
-    event OrganizerRegistered(address indexed organizer, string profileCID);
+    // ====== Sự kiện ======
+    event Registered(address indexed user);
     event AuctionCreated(
-        uint256 indexed auctionId,
+        uint256 indexed id,
         address indexed organizer,
-        string auctionDetailCID
+        uint40 whitelistCutoff,
+        uint40 start,
+        uint40 end,
+        uint128 startPriceVND,
+        uint128 stepVND,
+        string thongBaoUrl,
+        string quiCheUrl
     );
-    event WhitelistUpdated(
-        uint256 indexed auctionId,
-        address indexed organizer,
-        address[] added,
-        string[] uncProofCIDs // optional; có thể rỗng
-    );
-    event BidPlaced(
-        uint256 indexed auctionId,
-        address indexed bidder,
-        uint256 amountVND,
-        uint256 timestamp
-    );
-    /// reasonCode: 1 = NO_WHITELIST, 2 = NO_BIDS
-    event AuctionFailed(uint256 indexed auctionId, uint8 reasonCode);
-    event AuctionFinalized(
-        uint256 indexed auctionId,
-        address indexed winner,
-        uint256 finalPriceVND,
-        uint256 timestamp
-    );
+    event WhitelistUpdated(uint256 indexed id, address[] added, address[] removed);
+    event BidPlaced(uint256 indexed id, address indexed bidder, uint128 amountVND, uint40 ts);
+    event Finalized(uint256 indexed id, address winner, uint128 priceVND, uint40 ts, bool success);
 
-    // ====== Cấu hình phí VIN ======
-    IERC20 public vinToken;              // địa chỉ token VIN trên VIC
-    address public feeReceiver;          // nơi nhận phí
-    uint256 public platformFeeVIN;       // số VIN phải trả mỗi thao tác (tương ứng ~1 USD, do admin set)
+    // ====== Tham số hệ thống ======
+    // VIN token (18 decimals) — địa chỉ cố định trên Viction mainnet
+    IERC20 public constant VIN = IERC20(0x941F63807401efCE8afe3C9d88d368bAA287Fac4);
+    // Phí 0.001 VIN = 1e15 wei (VIN)
+    uint256 public constant FEE = 1e15;
 
-    // ====== Đăng ký tổ chức ======
-    mapping(address => bool) public registeredOrganizer;
-    mapping(address => string) public organizerProfileCID; // thông tin hành chính (IPFS), tùy chọn
+    address public immutable feeReceiver; // ví deployer nhận phí VIN
 
-    // ====== Đấu giá ======
+    // ====== Kiểu dữ liệu ======
     struct Auction {
         address organizer;
-
-        // Mốc thời gian (UNIX, giây)
-        uint64 startView;       // bắt đầu xem tài sản
-        uint64 endView;         // kết thúc xem tài sản
-        uint64 depositStart;    // bắt đầu nhận tiền cọc (thông tin)
-        uint64 depositCutoff;   // HẠN CUỐI cập nhật whitelist
-        uint64 auctionStart;    // bắt đầu phiên
-        uint64 auctionEnd;      // kết thúc phiên
-
-        // Giá & cọc (đơn vị: VND, hiển thị/minh bạch)
-        uint256 startingPriceVND;
-        uint256 minIncrementVND;
-        uint256 depositAmountVND;
-
-        // Trạng thái bid
-        uint256 currentPriceVND;   // mặc định = startingPriceVND
-        address highestBidder;
-
-        // Kết thúc
-        bool finalized;
-        bool failed;
-
-        // Whitelist
-        uint256 whitelistCount;
-
-        // IPFS chi tiết (mô tả dài, ảnh, tài liệu pháp lý, bank info...) -> lưu ở đây CID
-        string auctionDetailCID;
+        string  summary;           // ≤ 280 bytes (UI chịu trách nhiệm validate ký tự)
+        string  thongBaoUrl;       // ≤ 512 bytes, bất biến
+        string  quiCheUrl;         // ≤ 512 bytes, bất biến
+        uint40  whitelistCutoff;   // epoch seconds
+        uint40  auctionStart;      // epoch seconds
+        uint40  auctionEnd;        // epoch seconds
+        uint128 startPriceVND;     // VND (số nguyên)
+        uint128 stepVND;           // VND (số nguyên)
+        uint128 currentPriceVND;   // VND (số nguyên)
+        address currentLeader;     // ví đang dẫn (address(0) nếu chưa có)
+        bool    finalized;         // đã chốt chưa
+        bool    success;           // true nếu có người thắng khi finalize
     }
 
-    uint256 public totalAuctions;
-    mapping(uint256 => Auction) public auctions;
-    mapping(uint256 => mapping(address => bool)) public isWhitelisted;
-    mapping(address => uint256[]) private _organizerAuctions; // phục vụ tra cứu theo ví organizer
-
-    // ====== Constructor ======
-    constructor(address vinToken_, address feeReceiver_, uint256 platformFeeVIN_) {
-        require(vinToken_ != address(0) && feeReceiver_ != address(0), "ZERO_ADDR");
-        vinToken = IERC20(vinToken_);
-        feeReceiver = feeReceiver_;
-        platformFeeVIN = platformFeeVIN_;
+    struct AuctionInit {
+        string  summary;
+        string  thongBaoUrl;
+        string  quiCheUrl;
+        uint40  whitelistCutoff;
+        uint40  auctionStart;
+        uint40  auctionEnd;
+        uint128 startPriceVND;
+        uint128 stepVND;
     }
 
-    // ====== Admin update fee config ======
-    function setPlatformFeeVIN(uint256 newFee) external onlyOwner {
-        platformFeeVIN = newFee;
+    // ====== Trạng thái ======
+    uint256 public auctionCount;
+    mapping(uint256 => Auction) private _auctions;
+
+    // Whitelist: mapping + mảng + index để add/remove O(1)
+    mapping(uint256 => mapping(address => bool)) private _isWhitelisted;
+    mapping(uint256 => address[]) private _whitelistList;
+    mapping(uint256 => mapping(address => uint256)) private _whitelistIndexPlus1;
+
+    mapping(address => bool) public isRegistered;
+
+    // ====== Khởi tạo ======
+    constructor() {
+        feeReceiver = msg.sender;
     }
 
-    function setFeeReceiver(address newReceiver) external onlyOwner {
-        require(newReceiver != address(0), "ZERO_ADDR");
-        feeReceiver = newReceiver;
+    // ====== Modifiers ======
+    modifier onlyOrganizer(uint256 id) {
+        if (_auctions[id].organizer != msg.sender) revert NotOrganizer();
+        _;
     }
 
-    function setVinToken(address newVin) external onlyOwner {
-        require(newVin != address(0), "ZERO_ADDR");
-        vinToken = IERC20(newVin);
+    // ====== Hàm nội bộ ======
+    function _collectFee(address payer) internal {
+        // Yêu cầu người gọi đã approve đủ VIN trước trên frontend
+        bool ok = VIN.transferFrom(payer, feeReceiver, FEE);
+        if (!ok) revert FeeNotPaid();
     }
 
-    // ====== Helpers ======
-    function _collectFee() internal {
-        if (platformFeeVIN > 0) {
-            // yêu cầu caller đã approve VIN cho contract
-            vinToken.safeTransferFrom(msg.sender, feeReceiver, platformFeeVIN);
-        } else {
-            revert PLATFORM_FEE_REQUIRED(); // platformFeeVIN không được để 0 trong cấu hình
-        }
+    function _addWhitelist(uint256 id, address a) internal {
+        if (_isWhitelisted[id][a]) return;
+        _isWhitelisted[id][a] = true;
+        _whitelistList[id].push(a);
+        _whitelistIndexPlus1[id][a] = _whitelistList[id].length; // index+1
     }
 
-    // ====== API Đăng ký tổ chức ======
-    function registerOrganizer(string calldata profileCID) external nonReentrant {
-        _collectFee();
-        registeredOrganizer[msg.sender] = true;      // cho phép tạo phiên
-        organizerProfileCID[msg.sender] = profileCID; // lưu thông tin tuỳ chọn
-        emit OrganizerRegistered(msg.sender, profileCID);
-    }
+    function _removeWhitelist(uint256 id, address a) internal {
+        if (!_isWhitelisted[id][a]) return;
+        _isWhitelisted[id][a] = false;
 
-    // ====== API Tạo cuộc đấu giá ======
-    function createAuction(
-        uint64 startView,
-        uint64 endView,
-        uint64 depositStart,
-        uint64 depositCutoff,
-        uint64 auctionStart,
-        uint64 auctionEnd,
-        uint256 startingPriceVND,
-        uint256 minIncrementVND,
-        uint256 depositAmountVND,
-        string calldata auctionDetailCID
-    ) external nonReentrant returns (uint256 auctionId) {
-        require(registeredOrganizer[msg.sender], "NOT_REGISTERED");
-        // Kiểm tra logic thời gian:
-        // startView <= endView <= depositCutoff <= auctionStart < auctionEnd
-        if (!(startView <= endView &&
-              endView <= depositCutoff &&
-              depositCutoff <= auctionStart &&
-              auctionStart < auctionEnd)) {
-            revert INVALID_TIME_ORDER();
-        }
-        require(minIncrementVND > 0, "MIN_INCREMENT_ZERO");
-
-        _collectFee();
-
-        auctionId = ++totalAuctions;
-        Auction storage a = auctions[auctionId];
-        a.organizer = msg.sender;
-        a.startView = startView;
-        a.endView = endView;
-        a.depositStart = depositStart;
-        a.depositCutoff = depositCutoff;
-        a.auctionStart = auctionStart;
-        a.auctionEnd = auctionEnd;
-
-        a.startingPriceVND = startingPriceVND;
-        a.minIncrementVND = minIncrementVND;
-        a.depositAmountVND = depositAmountVND;
-
-        a.currentPriceVND = startingPriceVND; // giá hiện tại ban đầu = giá khởi điểm
-        a.auctionDetailCID = auctionDetailCID;
-
-        _organizerAuctions[msg.sender].push(auctionId);
-
-        emit AuctionCreated(auctionId, msg.sender, auctionDetailCID);
-    }
-
-    // ====== API Cập nhật whitelist (đến hạn cutoff) ======
-    function updateWhitelist(
-        uint256 auctionId,
-        address[] calldata bidders,
-        string[] calldata uncProofCIDs // optional; có thể rỗng hoặc cùng độ dài với bidders
-    ) external nonReentrant {
-        Auction storage a = auctions[auctionId];
-        if (msg.sender != a.organizer) revert NOT_ORGANIZER();
-        if (block.timestamp > a.depositCutoff) revert WHITELIST_CUTOFF();
-
-        _collectFee();
-
-        // Cho phép uncProofCIDs trống ([]) hoặc bằng độ dài bidders[]
-        if (uncProofCIDs.length != 0) {
-            require(uncProofCIDs.length == bidders.length, "UNC_LEN_MISMATCH");
-        }
-
-        // Chỉ cộng whitelistCount nếu địa chỉ mới
-        address[] memory actuallyAdded = new address[](bidders.length);
-        uint256 addedCount = 0;
-        for (uint256 i = 0; i < bidders.length; i++) {
-            address b = bidders[i];
-            if (b != address(0) && !isWhitelisted[auctionId][b]) {
-                isWhitelisted[auctionId][b] = true;
-                a.whitelistCount += 1;
-                actuallyAdded[addedCount++] = b;
+        uint256 idxPlus1 = _whitelistIndexPlus1[id][a];
+        if (idxPlus1 != 0) {
+            uint256 idx = idxPlus1 - 1;
+            uint256 last = _whitelistList[id].length - 1;
+            if (idx != last) {
+                address lastAddr = _whitelistList[id][last];
+                _whitelistList[id][idx] = lastAddr;
+                _whitelistIndexPlus1[id][lastAddr] = idx + 1;
             }
+            _whitelistList[id].pop();
+            _whitelistIndexPlus1[id][a] = 0;
         }
-
-        // Thu gọn mảng actuallyAdded theo addedCount
-        address[] memory added;
-        if (addedCount == actuallyAdded.length) {
-            added = actuallyAdded;
-        } else {
-            added = new address[](addedCount);
-            for (uint256 j = 0; j < addedCount; j++) {
-                added[j] = actuallyAdded[j];
-            }
-        }
-
-        emit WhitelistUpdated(auctionId, a.organizer, added, uncProofCIDs);
     }
 
-    // ====== API Bỏ giá (bid) ======
-    function placeBid(uint256 auctionId, uint256 bidAmountVND) external nonReentrant {
-        Auction storage a = auctions[auctionId];
+    // ====== API công khai ======
 
-        if (block.timestamp < a.auctionStart) revert AUCTION_NOT_STARTED();
-        if (block.timestamp >= a.auctionEnd) revert AUCTION_ENDED();
-        if (!isWhitelisted[auctionId][msg.sender]) revert BIDDER_NOT_WHITELISTED();
-
-        // Tính mức tối thiểu hợp lệ
-        uint256 minValidBid = a.currentPriceVND + a.minIncrementVND;
-        if (bidAmountVND < minValidBid) revert BID_TOO_LOW();
-
-        _collectFee();
-
-        // Cập nhật trạng thái dẫn đầu
-        a.currentPriceVND = bidAmountVND;
-        a.highestBidder = msg.sender;
-
-        emit BidPlaced(auctionId, msg.sender, bidAmountVND, block.timestamp);
+    // Đăng ký (mỗi ví 1 lần) — thu 0.001 VIN
+    function register() external {
+        if (isRegistered[msg.sender]) revert();
+        _collectFee(msg.sender);
+        isRegistered[msg.sender] = true;
+        emit Registered(msg.sender);
     }
 
-    // ====== API Kết thúc (ai cũng có thể gọi) ======
-    function finalize(uint256 auctionId) external nonReentrant {
-        Auction storage a = auctions[auctionId];
-        if (a.finalized) revert ALREADY_FINALIZED();
-        if (block.timestamp < a.auctionEnd) revert AUCTION_NOT_STARTED(); // sử dụng lại cho "chưa đến thời điểm kết thúc"
+    // Tạo cuộc đấu giá — thu 0.001 VIN
+    function createAuction(AuctionInit calldata a) external returns (uint256 id) {
+        if (!isRegistered[msg.sender]) revert NotRegistered();
 
-        a.finalized = true;
-
-        // Thất bại nếu không có whitelist hoặc không có bid hợp lệ
-        if (a.whitelistCount == 0) {
-            a.failed = true;
-            emit AuctionFailed(auctionId, 1); // NO_WHITELIST
-            return;
+        // Ràng buộc thời gian: now < cutoff ≤ start < end
+        uint40 nowTs = uint40(block.timestamp);
+        if (!(nowTs < a.whitelistCutoff && a.whitelistCutoff <= a.auctionStart && a.auctionStart < a.auctionEnd)) {
+            revert InvalidSchedule();
         }
-        if (a.highestBidder == address(0)) {
-            a.failed = true;
-            emit AuctionFailed(auctionId, 2); // NO_BIDS
-            return;
-        }
+        // Ràng buộc giá
+        require(a.startPriceVND > 0 && a.stepVND > 0, "InvalidPrice");
 
-        // Thành công
-        emit AuctionFinalized(auctionId, a.highestBidder, a.currentPriceVND, block.timestamp);
+        // Tài liệu bất biến phải có
+        require(bytes(a.thongBaoUrl).length > 0 && bytes(a.quiCheUrl).length > 0, "DocsRequired");
+
+        _collectFee(msg.sender);
+
+        id = ++auctionCount;
+        Auction storage s = _auctions[id];
+        s.organizer        = msg.sender;
+        s.summary          = a.summary;
+        s.thongBaoUrl      = a.thongBaoUrl;
+        s.quiCheUrl        = a.quiCheUrl;
+        s.whitelistCutoff  = a.whitelistCutoff;
+        s.auctionStart     = a.auctionStart;
+        s.auctionEnd       = a.auctionEnd;
+        s.startPriceVND    = a.startPriceVND;
+        s.stepVND          = a.stepVND;
+        // currentPriceVND = 0; currentLeader = address(0); finalized=false; success=false
+
+        emit AuctionCreated(
+            id, msg.sender,
+            a.whitelistCutoff, a.auctionStart, a.auctionEnd,
+            a.startPriceVND, a.stepVND, a.thongBaoUrl, a.quiCheUrl
+        );
     }
 
-    // ====== Views tiện ích ======
-    function getAuction(uint256 auctionId)
+    // Cập nhật whitelist (trước cutoff) — thu 0.001 VIN
+    function updateWhitelist(uint256 id, address[] calldata addrs, address[] calldata removes)
         external
-        view
-        returns (
-            address organizer,
-            uint64 startView,
-            uint64 endView,
-            uint64 depositStart,
-            uint64 depositCutoff,
-            uint64 auctionStart,
-            uint64 auctionEnd,
-            uint256 startingPriceVND,
-            uint256 minIncrementVND,
-            uint256 depositAmountVND,
-            uint256 currentPriceVND,
-            address highestBidder,
-            bool finalized,
-            bool failed,
-            string memory auctionDetailCID
-        )
+        onlyOrganizer(id)
     {
-        Auction storage a = auctions[auctionId];
-        organizer = a.organizer;
-        startView = a.startView;
-        endView = a.endView;
-        depositStart = a.depositStart;
-        depositCutoff = a.depositCutoff;
-        auctionStart = a.auctionStart;
-        auctionEnd = a.auctionEnd;
-        startingPriceVND = a.startingPriceVND;
-        minIncrementVND = a.minIncrementVND;
-        depositAmountVND = a.depositAmountVND;
-        currentPriceVND = a.currentPriceVND;
-        highestBidder = a.highestBidder;
-        finalized = a.finalized;
-        failed = a.failed;
-        auctionDetailCID = a.auctionDetailCID;
-    }
+        Auction storage s = _auctions[id];
+        if (uint40(block.timestamp) >= s.whitelistCutoff) revert WhitelistClosed();
 
-    function isWhitelistedBidder(uint256 auctionId, address bidder) external view returns (bool) {
-        return isWhitelisted[auctionId][bidder];
-    }
+        // Giới hạn an toàn gas: tối đa 200 địa chỉ mỗi lần (gợi ý)
+        require(addrs.length <= 200 && removes.length <= 200, "TooMany");
 
-    /// @notice 0:PENDING, 1:ACTIVE, 2:ENDED, 3:FINALIZED, 4:FAILED
-    function getStatus(uint256 auctionId) external view returns (uint8) {
-        Auction storage a = auctions[auctionId];
-        if (a.finalized) {
-            return a.failed ? 4 : 3;
+        _collectFee(msg.sender);
+
+        for (uint256 i = 0; i < addrs.length; i++) {
+            _addWhitelist(id, addrs[i]);
         }
-        if (block.timestamp < a.auctionStart) return 0;
-        if (block.timestamp < a.auctionEnd) return 1;
-        return 2;
+        for (uint256 j = 0; j < removes.length; j++) {
+            _removeWhitelist(id, removes[j]);
+        }
+        emit WhitelistUpdated(id, addrs, removes);
     }
 
-    function getOrganizerAuctions(address organizer) external view returns (uint256[] memory) {
-        return _organizerAuctions[organizer];
+    // Bỏ giá (chỉ whitelist, trong [start,end)) — thu 0.001 VIN
+    function placeBid(uint256 id, uint128 amountVND) external {
+        Auction storage s = _auctions[id];
+
+        uint40 nowTs = uint40(block.timestamp);
+        if (!(nowTs >= s.auctionStart && nowTs < s.auctionEnd)) revert NotLive();
+        if (!_isWhitelisted[id][msg.sender]) revert NotWhitelisted();
+
+        uint128 minNext = getMinNextBid(id);
+        if (amountVND < minNext) revert BidTooLow();
+
+        _collectFee(msg.sender);
+
+        s.currentPriceVND = amountVND;
+        s.currentLeader = msg.sender;
+
+        emit BidPlaced(id, msg.sender, amountVND, uint40(block.timestamp));
     }
 
-    // ====== Helper: phiên bản contract ======
-    function version() external pure returns (string memory) {
-        return "DauGia_v1.0.0";
+    // Chốt phiên (ai cũng gọi được, miễn phí), sau auctionEnd
+    function finalize(uint256 id) external {
+        Auction storage s = _auctions[id];
+        if (s.finalized) revert FinalizedAlready();
+        if (uint40(block.timestamp) < s.auctionEnd) revert NotLive(); // tái dùng NotLive cho "chưa đến giờ chốt"
+
+        s.finalized = true;
+        if (s.currentLeader != address(0)) {
+            s.success = true;
+        } else {
+            s.success = false;
+        }
+        emit Finalized(id, s.currentLeader, s.currentPriceVND, uint40(block.timestamp), s.success);
+    }
+
+    // ====== View helpers ======
+
+    // Lấy thông tin phiên
+    function getAuction(uint256 id) external view returns (Auction memory) {
+        return _auctions[id];
+    }
+
+    // Kiểm tra 1 ví trong whitelist
+    function isWhitelisted(uint256 id, address user) external view returns (bool) {
+        return _isWhitelisted[id][user];
+    }
+
+    // Trả về mức giá tối thiểu hợp lệ kế tiếp
+    function getMinNextBid(uint256 id) public view returns (uint128) {
+        Auction storage s = _auctions[id];
+        if (s.currentLeader == address(0)) {
+            return s.startPriceVND;
+        } else {
+            unchecked {
+                return s.currentPriceVND + s.stepVND;
+            }
+        }
+    }
+
+    // 0: NotStarted, 1: Live, 2: Ended, 3: Finalized
+    function getStatus(uint256 id) external view returns (uint8) {
+        Auction storage s = _auctions[id];
+        if (s.finalized) return 3;
+        uint40 nowTs = uint40(block.timestamp);
+        if (nowTs < s.auctionStart) return 0;
+        if (nowTs >= s.auctionEnd) return 2;
+        return 1;
+    }
+
+    // Lấy danh sách whitelist (có thể dài; dùng chủ yếu cho UI nhỏ/lọc trang)
+    function getWhitelist(uint256 id) external view returns (address[] memory) {
+        return _whitelistList[id];
     }
 }
-
