@@ -226,7 +226,3 @@ event Finalized(uint256 indexed id, address winner, uint128 priceVND, uint40 ts,
 * **Độ dài**: `summary ≤ 280` ký tự; URL ≤ `512` ký tự.
 * **VIN & VIC** đều **18 thập phân**. VND lưu **số nguyên** (không thập phân).
 
-```
-
-muốn mình check lại lần nữa sau khi bạn dán xong không? chỉ cần nói “xong” là mình rà lại ngay.
-```
