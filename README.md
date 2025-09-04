@@ -136,3 +136,7 @@ Mô tả này cung cấp thông tin đầy đủ và chi tiết để xây dựn
 - Địa chỉ của token VIN trên mạng Vic: 0x941F63807401efCE8afe3C9d88d368bAA287Fac4 các hành động: đăng ký (trả phí một lần duy nhất); tạo cuộc đấu giá; cập nhật ví đã đặt cọc, bỏ giá: mỗi lần ký ví trả 0.001 VIN
 - Giá VIN theo USD hiển thị kiểu: 1 VIN = 22.45 USD (làm tròn 2 số sau dấu chấm. Cách tính giá VIN: Bằng giá VIC trên Binance x 100; code ngay trong file index.html
 ---
+### **Yêu cầu**
+- Code hợp đồng DauGia.sol sử dụng công cụ hardhat và máy chủ aws để đẩy hợp đồng lên mạng vic, xác minh thành công, lưu ABI
+- Code 3 file index.html; style.css và app.js để đưa lên trang trên github chạy tên miền daugia.vin
+---
