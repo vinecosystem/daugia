@@ -19,7 +19,7 @@ Người dùng có thể tham gia vào nền tảng mà không cần kết nối
 Khi tạo một cuộc đấu giá, tổ chức (người tạo cuộc đấu giá) sẽ điền vào một mẫu với các thông tin bắt buộc và tùy chọn như sau:
 
 1. **Mô Tả Ngắn Gọn Tài Sản Đấu Giá** (Bắt buộc):
-   - Mô tả ngắn về tài sản đấu giá sẽ được hiển thị ngay trên đầu mỗi cuộc đấu giá. Thông tin này có thể là một đoạn ngắn, tương tự như một câu tiêu đề.
+   - Mô tả ngắn gọn về tài sản đấu giá sẽ được hiển thị ngay trên đầu mỗi cuộc đấu giá. Ví dụ: Căn nhà số X đường giải phóng hà nội. Diện tích đất 60 m2; diện tích xây dựng 150 m2; giấy tờ pháp lý: sổ đỏ.
 
 2. **Thông Báo Đấu Giá** (Bắt buộc):
    - Đây là nội dung chi tiết về tài sản đấu giá, có thể dài tối đa **20,000 ký tự**. Phần này cho phép người tổ chức nhập thông tin đầy đủ về tài sản, cũng như các quy định chi tiết về cuộc đấu giá.
