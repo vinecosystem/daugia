@@ -49,7 +49,7 @@ Khi tạo một cuộc đấu giá, tổ chức (người tạo cuộc đấu gi
 ---
 
 ### 4. Các Nút và Quyền Hạn
-- **Nút “Tham Gia”**: Mọi người dùng đều có thể tham gia cuộc đấu giá, dù chưa kết nối ví.
+- **Nút “Tham Gia”**: Mọi người dùng đều có thể tham gia cuộc đấu giá, dù chưa kết nối ví. (Nút này hiện dưới mỗi cuộc đấu giá)
 - **Nút “Trở về danh sách”**: Quay lại danh sách các cuộc đấu giá.
 - **Nút “Đăng Ký”**: Nếu ví chưa đăng ký tài khoản, nút này sẽ hiển thị và yêu cầu thanh toán phí **0.001 VIN** để đăng ký tài khoản.
 - **Nút “Tạo Cuộc Đấu Giá”**: Sau khi đăng ký thành công, người dùng có thể tạo cuộc đấu giá mới.
@@ -60,7 +60,8 @@ Khi tạo một cuộc đấu giá, tổ chức (người tạo cuộc đấu gi
 
 ### 5. Các Thông Tin Hiển Thị Trong Mỗi Cuộc Đấu Giá
 - **Mô Tả Tài Sản**: Hiển thị mô tả ngắn gọn tài sản đấu giá.
-- **Thông Báo Đấu Giá**: Hiển thị thông tin chi tiết về cuộc đấu giá từ thông báo mà người tạo đã cung cấp.
+- **Thông Báo Đấu Giá**: Hiển thị thông tin chi tiết về cuộc đấu giá từ thông báo mà người tạo cuộc đấu giá đã cung cấp.
+- **Qui chế Đấu Giá**: Hiển thị thông tin chi tiết về qui chế đấu giá từ qui chế đấu giá mà người tạo cuộc đấu giá đã cung cấp.
 - **Thời Gian Đấu Giá**: Hiển thị thời gian bắt đầu và kết thúc của cuộc đấu giá.
 - **Danh Sách Ví Đã Đặt Cọc**: Hiển thị những ví đã tham gia và được người tổ chức thêm vào whitelist.
 - **Giá Hiện Tại**: Hiển thị giá hiện tại của tài sản trong cuộc đấu giá.
