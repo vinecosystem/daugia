@@ -139,8 +139,13 @@ A: Không. Sau khi tạo phiên đấu giá, thông báo và quy chế **không 
 A: Mạng vic phí gas vô cùng rẻ chỉ 0.0001 vic và tốc độ không quá 15 giây hoàn thành giao dịch bỏ giá.
 
 ---
+## 8) Các liên kết truy cập nền tảng đấu giá
+- Truy cập ngay:
+GitHub: https://vinecosystem.github.io/auction
+IPFS: https://ipfs.io/ipfs/bafybeigz5miqtbq3onufsdnmmwg6nk7ixvzhel7p6g4uv2toxfd5cswptm
+Nền tảng chính: https://daugia.vin
 
-## 8) Lưu ý pháp lý
+## 9) Lưu ý pháp lý
 - Bạn cần **tuân thủ các quy định pháp lý** của Việt Nam và những yêu cầu liên quan đến tiền mã hoá khi sử dụng nền tảng **daugia.vin**.
 - Mọi giao dịch liên quan đến tiền mã hoá đều có **rủi ro**. Bạn cần **tự chịu trách nhiệm** đối với quyết định của mình.
 
