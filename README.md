@@ -131,10 +131,8 @@ Khi người dùng đã kết nối ví, giao diện sẽ có thêm thông tin v
 
 ---
 
-### **Kết Luận**
-Bản mô tả này cung cấp thông tin đầy đủ và chi tiết về giao diện nền tảng **daugia.vin** khi người dùng **chưa kết nối ví** và khi **đã kết nối ví**. Những thông tin này sẽ giúp chúng ta xây dựng hợp đồng thông minh và DApp dễ dàng và chính xác.
-
+### **Mục đích của file này**
+Mô tả này cung cấp thông tin đầy đủ và chi tiết để xây dựng nền tảng **daugia.vin** bao gồm code hợp đồng thông minh và làm dapp dễ dàng và chính xác.
+- Địa chỉ của token VIN trên mạng Vic: 0x941F63807401efCE8afe3C9d88d368bAA287Fac4 các hành động: đăng ký (trả phí một lần duy nhất); tạo cuộc đấu giá; cập nhật ví đã đặt cọc, bỏ giá: mỗi lần ký ví trả 0.001 VIN
+- Giá VIN theo USD hiển thị kiểu: 1 VIN = 22.45 USD (làm tròn 2 số sau dấu chấm. Cách tính giá VIN: Bằng giá VIC trên Binance x 100; code ngay trong file index.html
 ---
-
-### **Cách Cập Nhật Lên GitHub**
-Bạn có thể sao chép và dán nội dung này vào file **`README.md`** của dự án trên GitHub. Các phần tiêu đề được đánh dấu bằng dấu `#`, giúp phân loại các mục để dễ dàng theo dõi.
