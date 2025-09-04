@@ -1,107 +1,354 @@
-/* Base layout */
-:root{
-  --bg:#0b1020;
-  --panel:#111728;
-  --text:#e6eaf2;
-  --muted:#9aa3b2;
-  --primary:#2dd4bf;
-  --warn:#f59e0b;
-  --success:#22c55e;
-  --ghost:#2a3144;
-  --card:#141b2e;
-  --border:#22304b;
+/* ==========================================================================
+   daugia.vin — style.css
+   Mục tiêu: ưa nhìn · dễ sử dụng · chuyên nghiệp · mượt trên desktop & mobile
+   ========================================================================== */
+
+/* -------------------- 1) Reset & Variables -------------------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+:root {
+  /* Màu chủ đạo (dark, hiện đại) */
+  --bg: #0c111b;            /* nền tổng */
+  --panel: #121826;         /* khối / card */
+  --panel-2: #0f1522;       /* nền input / nhấn nhá */
+  --text: #e8edf6;          /* chữ chính */
+  --muted: #9aa7bd;         /* chữ phụ */
+  --primary: #2dd4bf;       /* điểm nhấn (nút chính) */
+  --success: #22c55e;       /* thành công */
+  --warn: #f59e0b;          /* cảnh báo/đăng ký */
+  --danger: #ef4444;
+  --border: #223049;        /* viền */
+  --ring: rgba(45, 212, 191, .35); /* focus ring */
+
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
+
+  --shadow-1: 0 8px 24px rgba(0,0,0,.25);
+  --shadow-2: 0 14px 38px rgba(0,0,0,.28);
+
+  --maxw: 1120px;
+  --space-1: 6px;
+  --space-2: 10px;
+  --space-3: 14px;
+  --space-4: 18px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+
+  --font: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;
-  min-height:100vh;              /* Sticky footer */
-  display:flex; flex-direction:column;
-  background:var(--bg); color:var(--text);
-  font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f7f9ff;
+    --panel: #ffffff;
+    --panel-2: #f1f4fb;
+    --text: #0b1430;
+    --muted: #5f6e86;
+    --primary: #0ea5e9;
+    --success: #16a34a;
+    --warn: #d97706;
+    --danger: #dc2626;
+    --border: #dfe6f4;
+    --ring: rgba(14,165,233,.35);
+  }
 }
 
-.container{max-width:1080px; margin:0 auto; padding:12px 16px}
-
-/* Header */
-.header{display:flex; align-items:center; justify-content:space-between; gap:12px}
-.brand{display:flex; align-items:center; gap:10px}
-.logo-img{height:28px; width:auto; border-radius:6px}
-.logo{font-weight:700; letter-spacing:.2px}
-.slogan{color:var(--muted); font-size:12px; margin-top:2px}
-
-.actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
-.vinusd{color:var(--muted); font-weight:600}
-
-/* Buttons */
-.btn{
-  background:var(--ghost); color:var(--text); border:1px solid var(--border);
-  padding:8px 12px; border-radius:10px; cursor:pointer; transition:all .2s ease;
-}
-.btn:hover{filter:brightness(1.05)}
-.btn.primary{background:var(--panel); border-color:#2b3756}
-.btn.warn{background:#3b2d12; border-color:#5b4216; color:#ffd590}
-.btn.success{background:#10331c; border-color:#1d4d2b; color:#b7f7c8}
-.btn.ghost{background:transparent}
-.btn.small{padding:6px 10px; font-size:12px}
-
-/* Account */
-.account{display:flex; align-items:center; gap:10px; padding:6px 8px; background:var(--panel); border:1px solid var(--border); border-radius:10px}
-.account .balance{color:var(--muted)}
-.hidden{display:none !important}
-
-/* Search */
-.searchBar{display:flex; gap:8px; padding:10px; background:var(--panel); border:1px solid var(--border); border-radius:12px; margin:10px 0}
-.searchBar input, .searchBar select{
-  flex:1; min-width:0; padding:10px 12px; background:#0e1426; color:var(--text);
-  border:1px solid var(--border); border-radius:10px; outline:none;
+/* -------------------- 2) Base Layout -------------------- */
+html, body { height: 100%; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;   /* sticky footer */
+  background: radial-gradient(1200px 700px at 60% -10%, rgba(45,212,191,.06), transparent 55%), var(--bg);
+  color: var(--text);
+  font: 14px/1.55 var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* List / Cards */
-.list{display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:12px; margin:10px 0 24px}
-.card{background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden}
-.card-head{display:flex; align-items:center; justify-content:space-between; padding:12px 12px; background:#0f162b; border-bottom:1px solid var(--border)}
-.card-body{padding:12px}
-.cols{display:grid; grid-template-columns:1fr 1fr; gap:12px}
-.col{background:#0f162b; border:1px dashed #1f2942; border-radius:10px; padding:10px}
-.snippet{white-space:pre-wrap; color:var(--text)}
-.doc-links{display:flex; gap:10px; margin-top:6px}
-.actions-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
-.status{margin-top:8px; color:var(--muted); font-size:13px}
+.container {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
 
-/* Dialog */
-.dialog::backdrop{background:rgba(0,0,0,.45)}
-.dialog-card{
-  width:min(680px, 92vw); background:var(--card); border:1px solid var(--border);
-  border-radius:14px; padding:16px; color:var(--text)
-}
-.dialog-card h3{margin:0 0 10px}
-.dialog-card label{display:flex; flex-direction:column; gap:6px; margin:8px 0}
-.dialog-card input{
-  padding:10px 12px; background:#0e1426; color:var(--text);
-  border:1px solid var(--border); border-radius:10px; outline:none;
-}
-.grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-.hint{color:#9bb1ff; font-size:13px; margin-top:6px}
-menu{display:flex; justify-content:flex-end; gap:10px; margin:12px 0 0}
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+b { font-weight: 700; }
+.hidden { display: none !important; }
 
-/* Footer (sticky) */
-.footer{
-  margin-top:auto;               /* Đẩy footer xuống đáy khi nội dung ít */
-  display:flex; flex-direction:column; gap:10px;
-  padding-top:8px; padding-bottom:18px;
-  color:var(--muted);
-  border-top:1px solid var(--border);
+/* Focus ring thống nhất */
+:where(button, [href], input, select, summary):focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--ring);
+  border-radius: var(--radius-sm);
 }
-.footer .links{display:flex; gap:14px; flex-wrap:wrap}
-.footer a{color:#bcd; text-decoration:none}
-.footer a:hover{text-decoration:underline}
-.disclaimer{font-size:13px; line-height:1.4}
 
-/* Responsive */
-@media (max-width:780px){
-  .cols{grid-template-columns:1fr}
-  .actions{justify-content:flex-end}
-  .searchBar{flex-wrap:wrap}
+/* -------------------- 3) Header -------------------- */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-6) 0 var(--space-4);
 }
+
+.brand { display: flex; align-items: center; gap: var(--space-3); }
+.logo-img {
+  width: 32px; height: 32px; border-radius: 8px; display: block;
+  box-shadow: 0 2px 10px rgba(0,0,0,.35);
+}
+.brand-text .logo { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: .2px; }
+.brand-text .slogan { margin: 2px 0 8px; color: var(--muted); font-size: 12.5px; }
+.vin-price {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.wallet-box {
+  display: grid;
+  grid-auto-flow: row;
+  grid-auto-rows: min-content;
+  justify-items: end;
+  gap: var(--space-2);
+}
+
+.account {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-1);
+}
+.account .balance { color: var(--muted); font-size: 13px; }
+#addr-short { font-family: var(--mono); background: var(--panel-2); padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); }
+
+/* -------------------- 4) Buttons -------------------- */
+.btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  letter-spacing: .2px;
+  cursor: pointer;
+  transition: transform .04s ease, background .2s ease, border-color .2s ease, opacity .2s ease, filter .2s ease;
+  user-select: none;
+}
+.btn:hover { filter: brightness(1.05); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: linear-gradient(180deg, var(--primary), #1fb9a7); color: #051311; border-color: transparent; }
+.btn.success { background: linear-gradient(180deg, var(--success), #199c49); color: #03190c; border-color: transparent; }
+.btn.warn { background: linear-gradient(180deg, #fbbf24, var(--warn)); color: #1d1401; border-color: transparent; }
+.btn.ghost { background: transparent; }
+.btn.small { padding: 6px 10px; font-size: 12.5px; }
+
+/* Khu vực nút phụ trong header */
+.actions-inline { display: inline-flex; gap: var(--space-2); flex-wrap: wrap; justify-content: flex-end; }
+
+/* -------------------- 5) Search Bar -------------------- */
+.searchBar {
+  display: grid;
+  grid-template-columns: 1fr 180px auto auto;
+  gap: var(--space-2);
+  padding: var(--space-3) 0 var(--space-5);
+}
+.searchBar input,
+.searchBar select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.searchBar input::placeholder { color: var(--muted); }
+
+/* -------------------- 6) Main / Cards -------------------- */
+main { flex: 1 0 auto; }   /* đẩy footer xuống đáy */
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: var(--space-4);
+  padding-bottom: var(--space-6);
+}
+
+.card {
+  background: linear-gradient(180deg, var(--panel), #0f1625);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+  transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.card:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); border-color: #2b3a5a; }
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.card-head .title { margin: 0; font-size: 18px; font-weight: 800; }
+
+.card-body { padding: var(--space-5); }
+.cols {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: var(--space-4);
+}
+
+.col {
+  background: var(--panel-2);
+  border: 1px dashed #1e2a44;
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  min-height: 120px;
+}
+.col.content .snippet {
+  color: var(--text);
+  white-space: pre-line;
+  line-height: 1.6;
+}
+.doc-links { margin-top: var(--space-3); display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.doc-links a { font-weight: 700; }
+
+.col.info > div { margin: 8px 0; }
+.col.info b { color: var(--muted); font-weight: 700; }
+.leader { font-family: var(--mono); }
+
+details.wl { margin-top: 8px; }
+details.wl > summary { cursor: pointer; color: var(--primary); font-weight: 700; }
+.wlList {
+  margin-top: 8px;
+  font-family: var(--mono);
+  white-space: pre-wrap;
+  color: var(--muted);
+  background: #0d1422;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+}
+
+.actions-row {
+  margin-top: var(--space-4);
+  display: flex; flex-wrap: wrap; gap: var(--space-2);
+}
+
+.status {
+  margin-top: var(--space-3);
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--muted);
+}
+
+/* -------------------- 7) Dialog (Tạo cuộc đấu giá) -------------------- */
+dialog.dialog {
+  border: none; padding: 0;
+  background: transparent; width: auto; max-width: 96vw;
+}
+dialog::backdrop { background: rgba(2,8,23,.55); backdrop-filter: blur(1px); }
+
+.dialog-card {
+  width: min(760px, 94vw);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+  padding: var(--space-6);
+  color: var(--text);
+}
+.dialog-card h3 { margin: 0 0 var(--space-4); font-size: 18px; }
+
+.dialog-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: var(--space-3);
+  font-size: 14px;
+}
+.dialog-card input {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.dialog-card input::placeholder { color: var(--muted); }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+
+menu {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: flex; gap: var(--space-2); justify-content: flex-end;
+}
+
+/* -------------------- 8) Footer (Sticky) -------------------- */
+.footer {
+  margin-top: auto;              /* sticky footer */
+  padding: var(--space-6) 0 var(--space-5);
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+.footer .links { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-2); }
+.footer .links a { font-weight: 700; }
+.footer .disclaimer { font-size: 13px; line-height: 1.6; }
+
+/* -------------------- 9) Animations (nhẹ) -------------------- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card, .dialog-card, .account { animation: fadeInUp .18s ease both; }
+
+/* -------------------- 10) Responsive -------------------- */
+@media (max-width: 1024px) {
+  .searchBar { grid-template-columns: 1fr 160px auto auto; }
+  .cols { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 780px) {
+  .header { flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+  .wallet-box { width: 100%; justify-items: stretch; }
+  .actions-inline { justify-content: flex-start; }
+  .searchBar { grid-template-columns: 1fr; }
+  .list { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 420px) {
+  .btn { padding: 9px 12px; border-radius: var(--radius-sm); }
+  .account { flex-wrap: wrap; gap: var(--space-1); }
+  .brand-text .logo { font-size: 18px; }
+  .vin-price { font-size: 12px; }
+}
+
+/* -------------------- 11) Tiện ích nhỏ -------------------- */
+input::-webkit-contacts-auto-fill-button { visibility: hidden; display: none !important; pointer-events: none; height: 0; width: 0; margin: 0; }
+::-webkit-calendar-picker-indicator { filter: invert(80%); opacity: .6; }
