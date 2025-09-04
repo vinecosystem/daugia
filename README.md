@@ -93,7 +93,7 @@ Sau khi mua VIC, bạn cần **rút** về ví MetaMask để sử dụng:
 1. Bấm **Tạo cuộc đấu giá**.
 2. Điền thông tin:
    - **Mô tả tài sản** (≤ 280 ký tự).
-   - **Link Thông báo** (bắt buộc), **Link Quy chế** (bắt buộc).
+   - **Link Thông báo** (bắt buộc), **Link Quy chế** (bắt buộc): tạo tài khoản miễn phí trên https://pinata.cloud (miễn phí) sau đó soạn thông báo đấu giá, qui chế đấu giá thành file pdf cập nhật file lấy link dán vào.
    - **Thời gian** đấu giá: **Bắt đầu** và **Kết thúc** (định dạng 24h, GMT+7).
    - **Giá khởi điểm** và **Bước giá** (đồng).
 3. Ký giao dịch và **nộp phí**.
