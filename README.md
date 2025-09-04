@@ -31,7 +31,7 @@ Khi tạo một cuộc đấu giá, tổ chức (người tạo cuộc đấu gi
    - Thời gian **bắt đầu** và **kết thúc** của cuộc đấu giá phải được khai báo bằng định dạng **dd/mm/yyyy và giờ 24h**. Điều này sẽ giúp hệ thống xác định thời gian bắt đầu và kết thúc của cuộc đấu giá.
 
 5. **Thời Gian Cập Nhật Ví Đã Đặt Cọc** (Bắt buộc):
-   - Thời gian **cập nhật ví đã đặt cọc**: Địa chỉ ví của người tham gia đấu giá sẽ được người tổ chức cập nhật trước khi thời gian **cutoff** kết thúc.
+   - Thời gian **cập nhật ví đã đặt cọc**: Địa chỉ ví của người tham gia đấu giá sẽ được người tạo cuộc đấu giá cập nhật trước khi thời gian **cutoff** kết thúc.
 
 6. **Giá Khởi Điểm** (Bắt buộc):
    - Mức **giá khởi điểm** của tài sản đấu giá (được nhập dưới dạng VND), và phần giá này sẽ được **hiển thị với dấu chấm** phân cách số (ví dụ: 100.000.000 VND).
