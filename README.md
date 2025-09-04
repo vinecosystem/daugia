@@ -22,8 +22,7 @@ Khi tạo một cuộc đấu giá, tổ chức (người tạo cuộc đấu gi
    - Mô tả ngắn gọn về tài sản đấu giá sẽ được hiển thị ngay trên đầu mỗi cuộc đấu giá. Ví dụ: Căn nhà số X đường giải phóng hà nội. Diện tích đất 60 m2; diện tích xây dựng 150 m2; giấy tờ pháp lý: sổ đỏ.
 
 2. **Thông Báo Đấu Giá** (Bắt buộc):
-   - Đây là nội dung chi tiết về tài sản đấu giá, có thể dài tối đa **20,000 ký tự**. Phần này cho phép người tổ chức nhập thông tin đầy đủ về tài sản, cũng như các quy định chi tiết về cuộc đấu giá.
-   - Mô tả này phải được dán vào từ **link** trên Pitana (nền tảng lưu trữ tài liệu của bạn), nơi tài liệu đã được chuẩn bị sẵn. Tất cả thông tin này phải được lưu trữ trên Pitana và sẽ chỉ nhập **link tài liệu** vào phần này.
+   - Đây là **link** tới tài liệu qui thông báo đấu giá của cuộc đấu giá. thông báo này được chuẩn bị và lưu trữ trên Pitana, và chỉ cần **dán link vào đây**.
 
 3. **Qui Chế Đấu Giá** (Bắt buộc):
    - Đây là **link** tới tài liệu qui chế đấu giá của cuộc đấu giá. Quy chế này được chuẩn bị và lưu trữ trên Pitana, và chỉ cần **dán link vào đây**.
