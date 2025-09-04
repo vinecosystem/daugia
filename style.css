@@ -352,3 +352,55 @@ menu {
 /* -------------------- 11) Tiện ích nhỏ -------------------- */
 input::-webkit-contacts-auto-fill-button { visibility: hidden; display: none !important; pointer-events: none; height: 0; width: 0; margin: 0; }
 ::-webkit-calendar-picker-indicator { filter: invert(80%); opacity: .6; }
+
+/* ===== Disclaimer (footer note) ===== */
+.footer .disclaimer {
+  max-width: 980px;
+  margin: 16px auto 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  text-align: left;
+  word-break: break-word;
+  text-wrap: pretty;         /* trình duyệt mới hỗ trợ */
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  background: #f8fafc;       /* light */
+  color: #334155;            /* slate-700 */
+  border: 1px solid #e5e7eb; /* slate-200 */
+}
+
+@media (prefers-color-scheme: dark) {
+  .footer .disclaimer {
+    background: rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;          /* slate-200 */
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* Nhấn mạnh icon/cụm đầu câu nếu có */
+.footer .disclaimer strong,
+.footer .disclaimer b {
+  font-weight: 600;
+}
+
+/* Link (nếu về sau có chèn) */
+.footer .disclaimer a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.footer .disclaimer a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Mobile tối ưu spacing & cỡ chữ */
+@media (max-width: 640px) {
+  .footer .disclaimer {
+    margin-top: 12px;
+    padding: 12px 14px;
+    font-size: 0.92rem;
+    border-radius: 10px;
+  }
+}
