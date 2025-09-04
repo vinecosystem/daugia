@@ -44,15 +44,15 @@
 
 1. **Xem danh sách** (không cần ví) → bấm **Chi tiết** để xem tài liệu gốc: *Thông báo đấu giá* & *Quy chế đấu giá*.
 2. **Kết nối ví**:
-   - Nếu **chưa đăng ký**: bấm **Đăng ký (0.001 VIN)** → từ nay ví này được phép tạo phiên/ thao tác.
+   - Nếu **chưa đăng ký**: bấm **Đăng ký (0.001 VIN)** → từ nay ví này được phép tạo phiên/thao tác.
    - Nếu **đã đăng ký**: có nút **Tạo cuộc đấu giá**.
 3. **Tạo cuộc đấu giá** (7 trường nhập – 6 bắt buộc):
    - **Mô tả ngắn** (≤ 280 ký tự) — *bắt buộc*.
-   - **Thông báo đấu giá – `thongBaoUrl`** — *bắt buộc* (link tài liệu; bạn để trên Pinata/Pitana).
+   - **Thông báo đấu giá – `thongBaoUrl`** — *bắt buộc* (link tài liệu; để trên Pinata/Pitana).
    - **Quy chế đấu giá – `quiCheUrl`** — *bắt buộc* (link tài liệu).
    - **Thời gian đấu giá** (bắt đầu & kết thúc) — *bắt buộc* (UI nhập `dd/mm/yyyy` + giờ 24h).
    - **Hạn cập nhật ví đã cọc** (*whitelist cutoff*) — *bắt buộc* (sau mốc này **khóa** cập nhật danh sách ví).
-   - **Giá khởi điểm (VND)** — *bắt buộc* (UI hiển thị 100.000.000 thay vì 100000000).
+   - **Giá khởi điểm (VND)** — *bắt buộc* (UI hiển thị `100.000.000` thay vì `100000000`).
    - **Bước giá (VND)** — *bắt buộc*.
    - Bấm **Đăng** → ký ví & thu **0.001 VIN** → phiên xuất hiện trong danh sách.
 4. **Cập nhật ví đã cọc** (chủ phiên, *trước cutoff*): thêm/bớt địa chỉ ví → đảm bảo chỉ người đã cọc mới có nút **Bỏ giá**.
@@ -84,12 +84,12 @@
 ## 4) Những gì **không** làm (phạm vi ngoài sản phẩm)
 - Không thu/giữ tiền đặt cọc hay tiền bán tài sản.
 - Không xử lý thanh toán/hoàn tiền/ủy nhiệm chi.
-- Không cho phép sửa **tài liệu gốc** sau khi tạo phiên (chỉ có thể thêm tài liệu đính chính ở bản tương lai nếu cần, nhưng bản gốc vẫn giữ nguyên).
+- Không cho phép sửa **tài liệu gốc** sau khi tạo phiên (nếu cần, có thể thêm tài liệu đính chính ở tương lai; bản gốc vẫn giữ nguyên).
 
 ---
 
 ## 5) Từ ngữ dễ hiểu
-- **Whitelist**: Danh sách ví **được phép** bỏ giá (vì đã đặt cọc theo quy chế; nền tảng chỉ ghi nhận do **chủ phiên** cập nhật).
+- **Whitelist**: Danh sách ví **được phép** bỏ giá (đã đặt cọc theo quy chế; nền tảng chỉ ghi nhận do **chủ phiên** cập nhật).
 - **Cutoff**: Hạn chót **khóa** cập nhật whitelist để đảm bảo minh bạch trước giờ đấu giá.
 - **Finalize** (*chốt phiên*): Công bố kết quả sau khi kết thúc thời gian đấu giá.
 
@@ -106,151 +106,127 @@
 - **Phí VIN mỗi hành động**: `FEE = 0.001 * 10^18`.
 - **feeReceiver**: địa chỉ deployer (bất biến).
 - **Cấu trúc phiên** (tóm lược):
-  ```solidity
-  struct Auction {
-    address organizer;
-    string  summary;           // ≤ 280 ký tự
-    string  thongBaoUrl;       // ≤ 512 ký tự, bất biến
-    string  quiCheUrl;         // ≤ 512 ký tự, bất biến
-    uint40  whitelistCutoff;   // epoch seconds
-    uint40  auctionStart;      // epoch seconds
-    uint40  auctionEnd;        // epoch seconds
-    uint128 startPriceVND;     // VND
-    uint128 stepVND;           // VND
-    uint128 currentPriceVND;   // VND
-    address currentLeader;     // ví đang dẫn
-    bool    finalized;         // đã chốt
-    bool    success;           // có người thắng hay thất bại
-  }
+```solidity
+struct Auction {
+  address organizer;
+  string  summary;           // ≤ 280 ký tự
+  string  thongBaoUrl;       // ≤ 512 ký tự, bất biến
+  string  quiCheUrl;         // ≤ 512 ký tự, bất biến
+  uint40  whitelistCutoff;   // epoch seconds
+  uint40  auctionStart;      // epoch seconds
+  uint40  auctionEnd;        // epoch seconds
+  uint128 startPriceVND;     // VND
+  uint128 stepVND;           // VND
+  uint128 currentPriceVND;   // VND
+  address currentLeader;     // ví đang dẫn
+  bool    finalized;         // đã chốt
+  bool    success;           // có người thắng hay thất bại
+}
+````
+
+**Hàm ghi:**
+
+* `register()` — thu **0.001 VIN** (mỗi ví **1 lần**).
+* `createAuction(AuctionInit)` — thu **0.001 VIN**.
+* `updateWhitelist(uint256 id, address[] addrs, address[] removes)` — thu **0.001 VIN**; chỉ **organizer**; chỉ **trước cutoff**; giới hạn **≤ 200** địa chỉ/lần để an toàn gas.
+* `placeBid(uint256 id, uint128 amountVND)` — thu **0.001 VIN**; chỉ **whitelist**; chỉ trong **\[start, end)**; điều kiện `amountVND ≥ currentPrice + step`.
+* `finalize(uint256 id)` — **miễn phí**; ai cũng gọi được sau `auctionEnd`.
+
+**Hàm view/UI:**
+
+* `isRegistered(address user) → bool`
+* `getAuction(uint256 id) → Auction`
+* `isWhitelisted(uint256 id, address user) → bool`
+* `getMinNextBid(uint256 id) → uint128` (trả về `currentPrice + step`, hoặc `startPrice` nếu chưa có bid)
+* `getStatus(uint256 id) → uint8` (`0: NotStarted, 1: Live, 2: Ended, 3: Finalized`)
+
+**Sự kiện:**
+
+```solidity
+event Registered(address user);
+event AuctionCreated(
+  uint256 indexed id, address indexed organizer,
+  uint40 whitelistCutoff, uint40 start, uint40 end,
+  uint128 startPriceVND, uint128 stepVND,
+  string thongBaoUrl, string quiCheUrl
+);
+event WhitelistUpdated(uint256 indexed id, address[] added, address[] removed);
+event BidPlaced(uint256 indexed id, address indexed bidder, uint128 amountVND, uint40 ts);
+event Finalized(uint256 indexed id, address winner, uint128 priceVND, uint40 ts, bool success);
+```
+
+**Ràng buộc/lỗi (gợi ý):**
+
+* Thời gian: `InvalidSchedule`, `WhitelistClosed`
+* Phí VIN: `FeeNotPaid` (thiếu/allowance không đủ)
+* Bỏ giá: `BidTooLow`, `NotWhitelisted`, `NotLive`
+* Đã chốt: `FinalizedAlready`
+* Sửa tài liệu: `ImmutableDocs`
+
+### 6.3. Frontend (3 file tĩnh)
+
+* **`index.html`** — giao diện & bố cục 1 cột, responsive.
+* **`style.css`** — tối giản, chữ rõ, nút lớn, dễ bấm trên mobile.
+* **`app.js`** — dùng `ethers.js`; logic:
+
+  * Kết nối ví, lấy số dư VIN/VIC (hiển thị 4 số thập phân).
+  * Lấy **VIC/USDT** từ **Binance API**, nhân 100 → hiển thị `1 VIN ≈ X.XX USD`.
+  * Tìm kiếm kiểu Google (lọc theo từ khóa + trạng thái).
+  * Hiển thị danh sách phiên, trạng thái, nút theo vai trò.
+  * Trước 4 hành động ký ví (**đăng ký / tạo phiên / cập nhật whitelist / bỏ giá**):
+
+    * Đảm bảo `approve` VIN đủ **0.001 VIN**.
+    * **Gas policy “mượt”**: `gasLimit = estimateGas × 2.0` (fallback cao); nếu EIP-1559, cộng \~**+25%** `maxFeePerGas` và `maxPriorityFeePerGas`.
+  * Trước khi ký **bỏ giá**: gọi `getMinNextBid()` để disable nút nếu < mức tối thiểu.
+
+---
+
+## 7) Kiểm thử & chấp nhận (Acceptance Checklist)
+
+* [ ] Tạo phiên hợp lệ (đủ 7 trường, 2 URL bắt buộc; ràng buộc thời gian đúng).
+* [ ] Cập nhật whitelist *trước cutoff* (thêm/bớt), *sau cutoff* bị khóa.
+* [ ] Bỏ giá:
+
+  * [ ] Giá đủ điều kiện (≥ min) → **thành công**.
+  * [ ] Giá thấp hơn min → **bị từ chối** (thông báo rõ).
+  * [ ] Hai giao dịch “cùng giá” → giao dịch vào **trước** thắng; giao dịch vào sau **bị từ chối**.
+* [ ] Chốt phiên (`finalize`):
+
+  * [ ] Có bid → hiển thị **Ví trúng** & **Giá trúng**.
+  * [ ] Không có bid → phiên **thất bại**.
+* [ ] Giao diện:
+
+  * [ ] Danh sách 1 cột (desktop & mobile), nội dung dài đọc thoải mái.
+  * [ ] Tìm kiếm kiểu Google hoạt động mượt.
+  * [ ] Header hiển thị đúng số dư & giá VIN≈USD.
+  * [ ] Nút theo vai trò hiển thị đúng (Đăng ký/Tạo phiên/Cập nhật ví đã cọc/Bỏ giá).
+* [ ] Phí:
+
+  * [ ] 4 hành động đều thu **0.001 VIN** về ví deployer.
+  * [ ] `finalize` không thu phí.
+* [ ] Không có đường tắt để sửa **thông báo/quy chế** sau khi tạo.
+
+---
 
-Hàm ghi:
+## 8) Cách phối hợp triển khai (bạn không cần biết code)
 
-register() — thu 0.001 VIN (mỗi ví 1 lần).
+1. Bạn thuê **AWS (Ubuntu)**.
+2. Mình gửi **từng lệnh một** (cài Node/Hardhat, cấu hình `.env`, deploy, verify…).
 
-createAuction(AuctionInit) — thu 0.001 VIN.
+   * Bạn chạy lệnh → **chụp màn hình** trả lại → mình đưa **lệnh tiếp theo**.
+3. Sau khi deploy & verify xong, mình bàn giao **ABI.json** và lần lượt 3 file **`index.html`** → **`style.css`** → **`app.js`** (mỗi lần một file để bạn copy).
+4. Bạn đẩy lên GitHub Pages trỏ domain **daugia.vin** → **sử dụng ngay**.
 
-updateWhitelist(auctionId, addrs[], removes[]) — thu 0.001 VIN; chỉ organizer; chỉ trước cutoff; giới hạn ≤ 200 địa chỉ/lần để an toàn gas.
+---
 
-placeBid(auctionId, amountVND) — thu 0.001 VIN; chỉ whitelist; chỉ trong [start, end); điều kiện amountVND ≥ currentPrice + step.
+## 9) Ghi chú cuối
 
-finalize(auctionId) — miễn phí; ai cũng gọi được sau auctionEnd.
+* **Ngôn ngữ UI**: 100% **Tiếng Việt**.
+* **Định dạng thời gian UI**: 24h; **dd/mm/yyyy**.
+* **Độ dài**: `summary ≤ 280` ký tự; URL ≤ `512` ký tự.
+* **VIN & VIC** đều **18 thập phân**. VND lưu **số nguyên** (không thập phân).
 
-Hàm view/UI:
+```
 
-isRegistered(address)
-
-getAuction(auctionId)
-
-isWhitelisted(auctionId, address)
-
-getMinNextBid(auctionId) → uint128 (trả về currentPrice + step, hoặc startPrice nếu chưa có bid)
-
-getStatus(auctionId) → uint8 (0: NotStarted, 1: Live, 2: Ended, 3: Finalized)
-
-Sự kiện:
-
-Registered(user)
-
-AuctionCreated(id, organizer, cutoff, start, end, startPrice, step, thongBaoUrl, quiCheUrl)
-
-WhitelistUpdated(id, added[], removed[])
-
-BidPlaced(id, bidder, amountVND, ts)
-
-Finalized(id, winner, priceVND, ts, success)
-
-Ràng buộc/lỗi (gợi ý):
-
-Thời gian: InvalidSchedule, WhitelistClosed
-
-Phí VIN: FeeNotPaid (thiếu/allowance không đủ)
-
-Bỏ giá: BidTooLow, NotWhitelisted, NotLive
-
-Đã chốt: FinalizedAlready
-
-Sửa tài liệu: ImmutableDocs
-
-6.3. Frontend (3 file tĩnh)
-
-index.html — giao diện & bố cục 1 cột, responsive.
-
-style.css — tối giản, chữ rõ, nút lớn, dễ bấm trên mobile.
-
-app.js — dùng ethers.js; logic:
-
-Kết nối ví, lấy số dư VIN/VIC.
-
-Lấy VIC/USDT từ Binance API, nhân 100 → hiển thị 1 VIN ≈ X.XX USD.
-
-Tìm kiếm kiểu Google (lọc theo từ khóa + trạng thái).
-
-Hiển thị danh sách phiên, trạng thái, nút theo vai trò.
-
-Trước 4 hành động ký ví (đăng ký / tạo phiên / cập nhật whitelist / bỏ giá):
-
-Đảm bảo approve VIN đủ 0.001 VIN.
-
-Gas Policy: gasLimit = estimateGas × 2.0 (fallback cao), EIP-1559 cộng ~+25% nếu có.
-
-Trước khi ký bỏ giá: gọi getMinNextBid() để disable nút nếu < mức tối thiểu.
-
-7) Kiểm thử & chấp nhận (Acceptance Checklist)
-
- Tạo phiên hợp lệ (đủ 7 trường, 2 URL bắt buộc; ràng buộc thời gian đúng).
-
- Cập nhật whitelist trước cutoff (thêm/bớt), sau cutoff bị khóa.
-
- Bỏ giá:
-
- Giá đủ điều kiện (≥ min) → thành công;
-
- Giá thấp hơn min → bị từ chối (thông báo rõ).
-
- Hai giao dịch “cùng giá” → giao dịch vào trước thắng; giao dịch vào sau bị từ chối.
-
- Chốt phiên (finalize):
-
- Có bid → hiển thị Ví trúng & Giá trúng.
-
- Không có bid → phiên thất bại.
-
- Giao diện:
-
- Danh sách 1 cột (desktop & mobile), nội dung dài đọc thoải mái.
-
- Tìm kiếm kiểu Google hoạt động mượt.
-
- Header hiển thị đúng số dư & giá VIN≈USD.
-
- Nút theo vai trò hiển thị đúng (Đăng ký/Tạo phiên/Cập nhật ví đã cọc/Bỏ giá).
-
- Phí:
-
- 4 hành động đều thu 0.001 VIN về ví deployer.
-
- finalize không thu phí.
-
- Không có đường tắt để sửa thông báo/quy chế sau khi tạo.
-
-8) Cách phối hợp triển khai (bạn không cần biết code)
-
-Bạn thuê AWS (Ubuntu).
-
-Mình gửi từng lệnh một (cài Node/Hardhat, cấu hình .env, deploy, verify…).
-
-Bạn chạy lệnh → chụp màn hình trả lại → mình đưa lệnh tiếp theo.
-
-Sau khi deploy & verify xong, mình bàn giao ABI.json và lần lượt 3 file index.html → style.css → app.js (mỗi lần một file để bạn copy).
-
-Bạn đẩy lên GitHub Pages trỏ domain daugia.vin → sử dụng ngay.
-
-9) Ghi chú cuối
-
-Ngôn ngữ UI: 100% Tiếng Việt.
-
-Định dạng thời gian UI: 24h; dd/mm/yyyy.
-
-Độ dài: summary ≤ 280 ký tự; URL ≤ 512 ký tự.
-
-VIN & VIC đều 18 thập phân. VND lưu số nguyên (không thập phân).
+muốn mình check lại lần nữa sau khi bạn dán xong không? chỉ cần nói “xong” là mình rà lại ngay.
+```
