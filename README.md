@@ -135,6 +135,9 @@ A: Không, nếu có hai người cùng bỏ giá, người bỏ giá **trước
 **Q: Tài liệu (Thông báo/Quy chế) có sửa được không?**  
 A: Không. Sau khi tạo phiên đấu giá, thông báo và quy chế **không thể sửa đổi** nữa để đảm bảo tính minh bạch.
 
+**Q: Tốc độ giao dịch bỏ thế nào? có bị nghẽn không**  
+A: Mạng vic phí gas vô cùng rẻ chỉ 0.0001 vic và tốc độ không quá 15 giây hoàn thành giao dịch bỏ giá.
+
 ---
 
 ## 8) Lưu ý pháp lý
