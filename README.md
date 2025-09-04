@@ -98,8 +98,8 @@ Sau khi mua VIC, bạn cần **rút** về ví MetaMask để sử dụng:
    - **Giá khởi điểm** và **Bước giá** (đồng).
 3. Ký giao dịch và **nộp phí**.
 
-### 5.4 Cập nhật danh sách ví đã cọc (whitelist)
-- Bấm **Cập nhật ví đã cọc** để thêm/gỡ ví vào whitelist trước **cutoff**.  
+### 5.4 Cập nhật danh sách ví đã đặt cọc
+- Bấm **Cập nhật ví đã đặt cọc** để thêm ví cho người đã đặt cọc, khi đó ví của họ mới hiện nút bỏ giá để tham gia đấu giá  
 - Ký giao dịch và thu **0.001 VIN**.
 
 ### 5.5 Bỏ giá
