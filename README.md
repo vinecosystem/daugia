@@ -130,7 +130,10 @@ Khi người dùng đã kết nối ví, giao diện sẽ có thêm thông tin v
 - Footer sẽ giống như khi chưa kết nối ví, nhưng có thêm phần **Địa Chỉ Ví và Số Dư**.
 
 ---
+#### **2.4. Phụ ghi**
+- Nếu bỏ cùng giá và sát thời gian thì ví nào bỏ trước thắng. 
 
+---
 ### **Mục đích của file này**
 Mô tả này cung cấp thông tin đầy đủ và chi tiết để xây dựng nền tảng **daugia.vin** bao gồm code hợp đồng thông minh và làm dapp dễ dàng và chính xác.
 - Địa chỉ của token VIN trên mạng Vic: 0x941F63807401efCE8afe3C9d88d368bAA287Fac4 các hành động: đăng ký (trả phí một lần duy nhất); tạo cuộc đấu giá; cập nhật ví đã đặt cọc, bỏ giá: mỗi lần ký ví trả 0.001 VIN
