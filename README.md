@@ -70,7 +70,7 @@ Lưu lại và chọn **Viction** khi kết nối với dApp.
 
 ### 4.1 Mua VIC và VIN
 - **Mua VIC**: Bạn có thể mua VIC trên các sàn giao dịch như **Binance** hoặc **MEXC**.
-- **Mua VIN**: Bạn có thể mua VIN trên các sàn hỗ trợ **VIC/USDT** hoặc trực tiếp trên nền tảng **daugia.vin**.
+- **Mua VIN**: Bạn bạn có VIC trong ví bấm link swap vin/vic trên nền tảng để đổi vic lấy vin ngay trên ví.
 
 ### 4.2 Rút VIC về ví MetaMask
 Sau khi mua VIC, bạn cần **rút** về ví MetaMask để sử dụng:
