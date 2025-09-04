@@ -15,7 +15,7 @@
 <body>
   <header class="container header">
     <div class="brand">
-      <img src="vin128.png" alt="daugia.vin" class="logo-img" style="height:28px;width:auto;border-radius:6px" />
+      <img src="vin128.png" alt="daugia.vin" class="logo-img" />
       <div>
         <div class="logo">daugia.vin</div>
         <div class="slogan">minh bạch trên blockchain</div>
@@ -95,7 +95,7 @@
     </form>
   </dialog>
 
-  <!-- Template card (ẩn) -->
+  <!-- Template card -->
   <template id="auctionCardTpl">
     <article class="card">
       <div class="card-head">
@@ -142,25 +142,24 @@
   <!-- App -->
   <script src="./app.js"></script>
 
-  <!-- Hiển thị giá 1 VIN ≈ USD (theo VIC/USDT * 100) -->
+  <!-- Giá 1 VIN ≈ USD (VIC/USDT * 100) -->
   <script>
     async function updateVinUsd() {
       const el = document.getElementById('vinUsd');
       try {
-        // Lấy giá VIC theo USDT trên Binance
         const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT', { cache: 'no-store' });
         if (!r.ok) throw new Error('fetch VICUSDT failed');
         const data = await r.json();
         const vicUsd = parseFloat(data.price);
         if (!isFinite(vicUsd)) throw new Error('invalid price');
-        const vinUsd = vicUsd * 100; // 1 VIN = 100 VIC theo mô tả
+        const vinUsd = vicUsd * 100;
         el.textContent = vinUsd.toFixed(2);
       } catch (e) {
         el.textContent = '--';
       }
     }
     updateVinUsd();
-    setInterval(updateVinUsd, 60_000); // Làm mới mỗi 60s
+    setInterval(updateVinUsd, 60000); // 60s
   </script>
 </body>
 </html>
