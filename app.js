@@ -365,15 +365,16 @@
   }
 
   async function loadWhitelistInto(cardNode, id) {
-    const wrap = cardNode.querySelector(".wlList");
-    if (!wrap || wrap.dataset.loaded === "1") return;
-    wrap.textContent = "Đang tải…";
-    try {
-      const list = await DG_READ.getWhitelist(id);
-      wrap.textContent = (list && list.length) ? list.join("\n") : "—";
-      wrap.dataset.loaded = "1";
-    } catch { wrap.textContent = "—"; }
-  }
+  const wrap = cardNode.querySelector(".wlList");
+  if (!wrap || wrap.dataset.loaded === "1") return;   // <-- chính là dòng gây cache
+  wrap.textContent = "Đang tải…";
+  try {
+    const list = await DG_READ.getWhitelist(id);
+    wrap.textContent = (list && list.length) ? list.join("\n") : "—";
+    wrap.dataset.loaded = "1";                         // <-- và dòng set cờ cache
+  } catch { wrap.textContent = "—"; }
+}
+
 
   /* -------------------- Hành động (đặt gasLimit cao) -------------------- */
   async function guardOnlineAndChain() {
