@@ -1,9 +1,9 @@
 /* ==========================================================================
-   daugia.vin — app.js (ethers v5, mobile-friendly)
+   daugia.vin — app.js (ethers v5, mobile-friendly, fixed)
    - Countdown ở đầu mỗi phiên (kể cả khi chưa kết nối ví)
-   - Whitelist hiển thị rộng; mỗi ví có nút "Mở" (mở UNC nếu có)
-   - Nút "Bỏ giá" hiện ngay khi vào whitelist; chỉ enable trong giờ live
-   - Fix MetaMask Mobile: tránh _blank; bỏ emoji trên iOS/MM
+   - Whitelist rộng; mỗi ví có nút "Mở" (UNC nếu có)
+   - "Bỏ giá" hiện ngay khi ví trong whitelist; chỉ enable trong giờ live
+   - Fix MetaMask Mobile/iOS, tránh _blank; KHÔNG trùng định danh
    ========================================================================== */
 (function () {
   'use strict';
@@ -93,12 +93,11 @@
   const UA = navigator.userAgent || "";
   const IS_IOS = /iPhone|iPad|iPod/i.test(UA);
   const IS_MMOBILE = /MetaMask/i.test(UA);
-  // Mở link an toàn cho MetaMask Mobile/iOS (tránh _blank gây crash)
   function openExternal(url) {
     try {
       if (!url) return;
       if (IS_MMOBILE || IS_IOS) {
-        location.href = url;            // điều hướng trực tiếp
+        location.href = url; // tránh _blank trong MM Mobile
       } else {
         window.open(url, "_blank", "noopener");
       }
@@ -156,7 +155,6 @@
 
   /* -------------------- Tiện ích -------------------- */
   const shortAddr = (a) => a ? (a.slice(0, 6) + "…" + a.slice(-4)) : "";
-  const appendDong = (s) => s ? (s + " đồng") : "—";
   function fmtVND(x) {
     const s = (typeof x === "string") ? x.replace(/\D/g, "") :
               ethers.BigNumber.isBigNumber(x) ? x.toString() :
@@ -184,6 +182,7 @@
   const isUrl  = (s) => !s || /^(https?:)?\/\//i.test(String(s));
 
   const numOr0 = (x) => { try { return ethers.BigNumber.isBigNumber(x) ? x.toNumber() : Number(x||0); } catch { return 0; } };
+  const appendDong = (s) => s ? (s + " đồng") : "—"; // ĐỊNH NGHĨA DUY NHẤT
 
   /* -------------------- Kết nối ví -------------------- */
   async function ensureChain() {
@@ -357,7 +356,6 @@
       const title = node.querySelector(".title");
       (title?.parentNode || node).insertBefore(cd, (title?.nextSibling || node.firstChild));
     }
-
     const old = countdownTimers.get(id);
     if (old) clearInterval(old);
 
@@ -366,13 +364,9 @@
       const startMs = startTs * 1000;
       const endMs   = endTs   * 1000;
       let text = "";
-      if (nowMs < startMs) {
-        text = `Con ${formatDHMS(startMs - nowMs)} den khi bat dau`;
-      } else if (nowMs >= startMs && nowMs < endMs) {
-        text = `Dang dien ra — con ${formatDHMS(endMs - nowMs)} den khi ket thuc`;
-      } else {
-        text = `Da ket thuc`;
-      }
+      if (nowMs < startMs) text = `Con ${formatDHMS(startMs - nowMs)} den khi bat dau`;
+      else if (nowMs >= startMs && nowMs < endMs) text = `Dang dien ra — con ${formatDHMS(endMs - nowMs)} den khi ket thuc`;
+      else text = `Da ket thuc`;
       cd.textContent = MM_SAFE_TEXT(text); // loại emoji trên iOS/MM
     };
     tick();
@@ -381,7 +375,6 @@
   }
 
   /* -------------------- Xây card -------------------- */
-  const appendDong = (s) => s ? (s + " đồng") : "—";
   async function buildCard(id) {
     const { a, st } = await fetchAuction(id);
     const node = els.tpl.content.firstElementChild.cloneNode(true);
@@ -402,10 +395,13 @@
     });
 
     node.querySelector(".snippet").textContent = " ";
+
     const tb = node.querySelector(".thongbao");
     const qc = node.querySelector(".quyche");
-    tb.href = a.thongBaoUrl || "#"; tb.onclick = (e)=>{ if(tb.href!=="#") openExternal(tb.href); e.preventDefault(); };
-    qc.href = a.quiCheUrl   || "#"; qc.onclick = (e)=>{ if(qc.href!=="#") openExternal(qc.href); e.preventDefault(); };
+    tb.href = a.thongBaoUrl || "#";
+    tb.addEventListener("click", (e)=>{ if (a.thongBaoUrl) { e.preventDefault(); openExternal(a.thongBaoUrl); }});
+    qc.href = a.quiCheUrl   || "#";
+    qc.addEventListener("click", (e)=>{ if (a.quiCheUrl) { e.preventDefault(); openExternal(a.quiCheUrl); }});
 
     node.querySelector(".time").textContent   = `${epochToVN(startTs)} → ${epochToVN(endTs)}`;
     node.querySelector(".cutoff").textContent = epochToVN(cutoffTs);
@@ -481,7 +477,7 @@
     }
   }
 
-  /* -------------------- Whitelist UI (rộng + nút MỞ xem tài liệu) -------------------- */
+  /* -------------------- Whitelist UI (rộng + nút MỞ) -------------------- */
   function ensureWlBoxStyle(box) {
     box.style.whiteSpace = "normal";
     box.style.background = "#0d1422";
@@ -519,7 +515,7 @@
       } else {
         alert("Người tạo cuộc đấu giá không cung cấp tài liệu.");
       }
-      // TODO: nối tới nguồn UNC công khai (IPFS/API) khi sẵn sàng.
+      // TODO: thay bằng lấy UNC từ nguồn công khai (IPFS/API) khi có.
     };
 
     wrap.append(address, btn);
