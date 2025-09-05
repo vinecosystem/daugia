@@ -1,8 +1,10 @@
 /* ==========================================================================
    daugia.vin — app.js (ethers v5)
-   - Robust render: bỏ qua phiên lỗi thay vì sập cả danh sách
-   - Hiện “Bỏ giá” ngay khi ví đã trong whitelist; chỉ enable trong khung giờ
-   - Ẩn nút “Tạo cuộc đấu giá” trong từng card
+   - Đồng hồ đếm ngược ở đầu mỗi phiên (hoạt động cả khi chưa kết nối ví)
+   - Whitelist view rộng, có nút “Mở xem chi tiết đã cọc” cho từng ví
+   - Hiện “Bỏ giá” ngay khi ví đã whitelist; chỉ enable trong giờ live
+   - Ẩn nút “Tạo cuộc đấu giá” trong từng card (giữ nút ở header)
+   - Render robust: bỏ qua phiên lỗi thay vì sập cả danh sách
    ========================================================================== */
 (function () {
   'use strict';
@@ -79,7 +81,6 @@
   ];
 
   const FEE_VIN = ethers.utils.parseUnits("0.001", 18); // phí 0.001 VIN
-
   const VN_TZ = "Asia/Bangkok";
 
   /* -------------------- Trạng thái & nhà cung cấp -------------------- */
@@ -160,6 +161,8 @@
   }
   const isAddr = (s) => /^0x[a-fA-F0-9]{40}$/.test(String(s||"").trim());
   const isUrl  = (s) => !s || /^(https?:)?\/\//i.test(String(s));
+
+  const numOr0 = (x) => { try { return ethers.BigNumber.isBigNumber(x) ? x.toNumber() : Number(x||0); } catch { return 0; } };
 
   /* -------------------- Kết nối ví -------------------- */
   async function ensureChain() {
@@ -265,12 +268,11 @@
     await tx.wait();
   }
 
-  /* -------------------- Render danh sách (robust) -------------------- */
+  /* -------------------- Render danh sách -------------------- */
   async function fetchAuctionCount() {
     try { return await DG_READ.auctionCount(); }
     catch (e) { console.error("auctionCount failed:", e); return ethers.BigNumber.from(0); }
   }
-
   async function fetchAuction(id) {
     const a = await DG_READ.getAuction(id);
     const st = await DG_READ.getStatus(id);
@@ -280,19 +282,16 @@
   async function renderAuctions() {
     els.list.textContent = "Đang tải…";
     try {
-      // kiểm tra template
       if (!els.tpl || !els.tpl.content || !els.tpl.content.firstElementChild) {
-        console.error("Template #tpl-auction không khả dụng trong index.html");
+        console.error("Template #tpl-auction không khả dụng");
         els.list.textContent = "Lỗi template. Kiểm tra lại index.html.";
         return;
       }
-
       const countBN = await fetchAuctionCount();
       const num = ethers.BigNumber.from(countBN || 0).toNumber();
       const ids = [];
-      for (let i = num; i >= 1; i--) ids.push(i);   // Hợp đồng đếm từ 1
+      for (let i = num; i >= 1; i--) ids.push(i);
       els.list.innerHTML = "";
-
       if (!ids.length) { els.list.textContent = "Chưa có cuộc đấu giá."; return; }
 
       let okCount = 0;
@@ -302,34 +301,80 @@
           els.list.appendChild(card);
           okCount++;
         } catch (err) {
-          // Bỏ qua phiên lỗi, log để debug
           console.warn(`Bỏ qua phiên #${id} vì lỗi:`, err?.message || err);
           continue;
         }
       }
-      if (okCount === 0) {
-        els.list.textContent = "Không tải được danh sách.";
-      }
+      if (okCount === 0) els.list.textContent = "Không tải được danh sách.";
     } catch (e) {
       console.error(e);
       els.list.textContent = "Không tải được danh sách.";
     }
   }
 
-  function numOr0(x) { try { return ethers.BigNumber.isBigNumber(x) ? x.toNumber() : Number(x||0); } catch { return 0; } }
+  /* -------------------- Đồng hồ đếm ngược -------------------- */
+  const countdownTimers = new Map(); // id -> intervalId
+  function formatDHMS(ms) {
+    if (ms <= 0) return "00:00:00";
+    const s = Math.floor(ms / 1000);
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const ss= s % 60;
+    const hh = String(h).padStart(2,"0"), mm = String(m).padStart(2,"0"), ss2 = String(ss).padStart(2,"0");
+    return d>0 ? `${d}d ${hh}:${mm}:${ss2}` : `${hh}:${mm}:${ss2}`;
+  }
+  function attachCountdown(node, id, startTs, endTs) {
+    // Tạo vùng countdown nếu chưa có
+    let cd = node.querySelector(".countdown");
+    if (!cd) {
+      cd = document.createElement("div");
+      cd.className = "countdown";
+      cd.style.margin = "6px 0 8px";
+      cd.style.fontWeight = "700";
+      cd.style.fontSize = "0.95rem";
+      cd.style.color = "#9ddcff";
+      const title = node.querySelector(".title");
+      (title?.parentNode || node).insertBefore(cd, (title?.nextSibling || node.firstChild));
+    }
 
+    // Clear timer cũ
+    const old = countdownTimers.get(id);
+    if (old) clearInterval(old);
+
+    const tick = () => {
+      const nowMs = Date.now();
+      const startMs = startTs * 1000;
+      const endMs   = endTs   * 1000;
+      if (nowMs < startMs) {
+        cd.textContent = `⏳ Còn ${formatDHMS(startMs - nowMs)} đến khi bắt đầu`;
+      } else if (nowMs >= startMs && nowMs < endMs) {
+        cd.textContent = `🟢 Đang diễn ra — còn ${formatDHMS(endMs - nowMs)} đến khi kết thúc`;
+      } else {
+        cd.textContent = `🔴 Đã kết thúc`;
+      }
+    };
+    tick();
+    const tId = setInterval(tick, 1000);
+    countdownTimers.set(id, tId);
+  }
+
+  /* -------------------- Xây card -------------------- */
   async function buildCard(id) {
     const { a, st } = await fetchAuction(id);
     const node = els.tpl.content.firstElementChild.cloneNode(true);
     node.id = "auction-" + id;
 
-    // Ép kiểu thời gian về number (an toàn)
     const cutoffTs = numOr0(a.whitelistCutoff);
     const startTs  = numOr0(a.auctionStart);
     const endTs    = numOr0(a.auctionEnd);
 
     // Tiêu đề / chi tiết
     node.querySelector(".title").textContent = a.summary || `(Phiên #${id})`;
+
+    // Countdown (hoạt động khi chưa kết nối ví)
+    attachCountdown(node, id, startTs, endTs);
+
     const body = node.querySelector(".card-body");
     node.querySelector(".detailBtn").addEventListener("click", () => {
       body.classList.toggle("hidden");
@@ -363,7 +408,7 @@
     });
     node.querySelector(".backBtn").addEventListener("click", () => { [...els.list.children].forEach(el => { el.style.display = ""; }); });
 
-    // Nút theo vai trò
+    // Nút hành động theo vai trò
     await updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
 
     return node;
@@ -422,21 +467,70 @@
     }
   }
 
+  /* -------------------- Whitelist UI (rộng + nút xem chi tiết) -------------------- */
+  function ensureWlBoxStyle(box) {
+    box.style.whiteSpace = "normal";
+    box.style.background = "#0d1422";
+    box.style.border = "1px dashed #223049";
+    box.style.borderRadius = "12px";
+    box.style.padding = "12px";
+    box.style.margin = "10px 0";
+    box.style.maxHeight = "360px";
+    box.style.overflow = "auto";
+  }
+  function buildWlRow(id, addr) {
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.justifyContent = "space-between";
+    row.style.gap = "10px";
+    row.style.padding = "8px 0";
+    row.style.borderBottom = "1px solid rgba(255,255,255,0.06)";
+
+    const left = document.createElement("div");
+    left.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    left.style.fontSize = "0.95rem";
+    left.textContent = addr;
+
+    const btn = document.createElement("button");
+    btn.className = "btn";
+    btn.textContent = "Mở xem chi tiết đã cọc";
+    btn.style.whiteSpace = "nowrap";
+    btn.style.background = "linear-gradient(180deg,#60a5fa,#3b82f6)";
+    btn.style.border = "none"; btn.style.fontWeight = "800";
+
+    btn.onclick = () => {
+      // Hiện tại UNC được organizer dán khi cập nhật -> lưu tạm ở sessionStorage trên máy đó.
+      const key = `unc:${id}:${addr.toLowerCase()}`;
+      const unc = sessionStorage.getItem(key);
+      if (unc && /^https?:\/\//i.test(unc)) {
+        window.open(unc, "_blank", "noopener");
+      } else {
+        alert("Chưa có UNC cho ví này.");
+      }
+      // TODO: nếu có back-end/IPFS, thay logic lấy UNC ở đây để mọi người đều xem được.
+    };
+
+    row.append(left, btn);
+    return row;
+  }
+
   async function loadWhitelistInto(cardNode, id) {
     const wrap = cardNode.querySelector(".wlList");
     if (!wrap) return;
     wrap.textContent = "Đang tải…";
     try {
       const list = await DG_READ.getWhitelist(id);
-      const lines = (list && list.length) ? list.map(a => {
-        let line = a;
-        try {
-          const unc = sessionStorage.getItem(`unc:${id}:${a.toLowerCase()}`);
-          if (unc) line += `  —  UNC: ${unc}`;
-        } catch {}
-        return line;
-      }) : [];
-      wrap.textContent = lines.length ? lines.join("\n") : "—";
+      wrap.innerHTML = "";
+      ensureWlBoxStyle(wrap);
+
+      if (!list || !list.length) {
+        wrap.textContent = "—";
+        return;
+      }
+      for (const addr of list) {
+        wrap.appendChild(buildWlRow(id, addr));
+      }
     } catch (e) {
       console.error("getWhitelist failed:", e);
       wrap.textContent = "—";
@@ -516,12 +610,15 @@
         try { if (unc) sessionStorage.setItem(`unc:${id}:${addr.toLowerCase()}`, unc); } catch {}
 
         alert("Đã cập nhật whitelist.");
+
         await loadWhitelistInto(cardNode, id);
 
+        // Nếu đang dùng chính ví vừa thêm: hiển thị nút Bỏ giá ngay (enable/disable theo giờ)
         const { a } = await fetchAuction(id);
         const startTs = numOr0(a.auctionStart);
         const endTs   = numOr0(a.auctionEnd);
         await updateCardActions(cardNode, a, id, { cutoffTs: cutoffSec, startTs, endTs });
+
         box.classList.add("hidden");
       } catch (e) {
         console.error(e);
@@ -646,6 +743,7 @@
           const startTs = numOr0(a.auctionStart);
           const endTs   = numOr0(a.auctionEnd);
           const cutoffTs= numOr0(a.whitelistCutoff);
+          attachCountdown(node, id, startTs, endTs); // cập nhật đồng hồ
           await updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
         } catch (e) {
           console.warn("Reeval skip id", id, e?.message || e);
