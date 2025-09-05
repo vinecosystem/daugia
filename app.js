@@ -1,4 +1,4 @@
-/* ==========================================================================
+/* ========================================================================== 
    daugia.vin — app.js (ethers v5, mobile link-fix)
    - Countdown ở đầu mỗi phiên (kể cả khi chưa kết nối ví)
    - Whitelist rộng; mỗi ví có nút "Mở" (UNC nếu có)
