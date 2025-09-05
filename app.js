@@ -1,10 +1,9 @@
 /* ==========================================================================
-   daugia.vin — app.js (ethers v5)
-   - Đồng hồ đếm ngược ở đầu mỗi phiên (hoạt động cả khi chưa kết nối ví)
-   - Whitelist view rộng, có nút “Mở xem chi tiết đã cọc” cho từng ví
-   - Hiện “Bỏ giá” ngay khi ví đã whitelist; chỉ enable trong giờ live
-   - Ẩn nút “Tạo cuộc đấu giá” trong từng card (giữ nút ở header)
-   - Render robust: bỏ qua phiên lỗi thay vì sập cả danh sách
+   daugia.vin — app.js (ethers v5, mobile-friendly)
+   - Countdown ở đầu mỗi phiên (kể cả khi chưa kết nối ví)
+   - Whitelist hiển thị rộng; mỗi ví có nút "Mở" (mở UNC nếu có)
+   - Nút "Bỏ giá" hiện ngay khi vào whitelist; chỉ enable trong giờ live
+   - Fix MetaMask Mobile: tránh _blank; bỏ emoji trên iOS/MM
    ========================================================================== */
 (function () {
   'use strict';
@@ -90,12 +89,34 @@
   let web3Provider = null, signer = null, account = null;
   let DG = null, VIN = null;
 
+  /* -------------------- Mobile helpers -------------------- */
+  const UA = navigator.userAgent || "";
+  const IS_IOS = /iPhone|iPad|iPod/i.test(UA);
+  const IS_MMOBILE = /MetaMask/i.test(UA);
+  // Mở link an toàn cho MetaMask Mobile/iOS (tránh _blank gây crash)
+  function openExternal(url) {
+    try {
+      if (!url) return;
+      if (IS_MMOBILE || IS_IOS) {
+        location.href = url;            // điều hướng trực tiếp
+      } else {
+        window.open(url, "_blank", "noopener");
+      }
+    } catch {
+      location.href = url;
+    }
+  }
+  const MM_SAFE_TEXT = (s) => (IS_MMOBILE || IS_IOS) ? String(s||"").replace(/[⏳🟢🔴]/g,"") : s;
+
+  // Ping giữ kết nối ấm
   let pingTimer = null;
   const startPing = () => { stopPing(); pingTimer = setInterval(() => readProvider.getBlockNumber().catch(() => {}), 45000); };
   const stopPing  = () => { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } };
 
+  // Re-evaluate theo chu kỳ (mobile 10s, desktop 5s)
   let reevalTimer = null;
-  const startReevalTimer = () => { stopReevalTimer(); reevalTimer = setInterval(reevaluateAllCards, 5000); };
+  const REEVAL_MS = (IS_MMOBILE || IS_IOS) ? 10000 : 5000;
+  const startReevalTimer = () => { stopReevalTimer(); reevalTimer = setInterval(reevaluateAllCards, REEVAL_MS); };
   const stopReevalTimer  = () => { if (reevalTimer) { clearInterval(reevalTimer); reevalTimer = null; } };
 
   let connectBusy = false;
@@ -325,7 +346,6 @@
     return d>0 ? `${d}d ${hh}:${mm}:${ss2}` : `${hh}:${mm}:${ss2}`;
   }
   function attachCountdown(node, id, startTs, endTs) {
-    // Tạo vùng countdown nếu chưa có
     let cd = node.querySelector(".countdown");
     if (!cd) {
       cd = document.createElement("div");
@@ -338,7 +358,6 @@
       (title?.parentNode || node).insertBefore(cd, (title?.nextSibling || node.firstChild));
     }
 
-    // Clear timer cũ
     const old = countdownTimers.get(id);
     if (old) clearInterval(old);
 
@@ -346,13 +365,15 @@
       const nowMs = Date.now();
       const startMs = startTs * 1000;
       const endMs   = endTs   * 1000;
+      let text = "";
       if (nowMs < startMs) {
-        cd.textContent = `⏳ Còn ${formatDHMS(startMs - nowMs)} đến khi bắt đầu`;
+        text = `Con ${formatDHMS(startMs - nowMs)} den khi bat dau`;
       } else if (nowMs >= startMs && nowMs < endMs) {
-        cd.textContent = `🟢 Đang diễn ra — còn ${formatDHMS(endMs - nowMs)} đến khi kết thúc`;
+        text = `Dang dien ra — con ${formatDHMS(endMs - nowMs)} den khi ket thuc`;
       } else {
-        cd.textContent = `🔴 Đã kết thúc`;
+        text = `Da ket thuc`;
       }
+      cd.textContent = MM_SAFE_TEXT(text); // loại emoji trên iOS/MM
     };
     tick();
     const tId = setInterval(tick, 1000);
@@ -360,6 +381,7 @@
   }
 
   /* -------------------- Xây card -------------------- */
+  const appendDong = (s) => s ? (s + " đồng") : "—";
   async function buildCard(id) {
     const { a, st } = await fetchAuction(id);
     const node = els.tpl.content.firstElementChild.cloneNode(true);
@@ -369,10 +391,7 @@
     const startTs  = numOr0(a.auctionStart);
     const endTs    = numOr0(a.auctionEnd);
 
-    // Tiêu đề / chi tiết
     node.querySelector(".title").textContent = a.summary || `(Phiên #${id})`;
-
-    // Countdown (hoạt động khi chưa kết nối ví)
     attachCountdown(node, id, startTs, endTs);
 
     const body = node.querySelector(".card-body");
@@ -382,10 +401,11 @@
       updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
     });
 
-    // Nội dung / links
     node.querySelector(".snippet").textContent = " ";
-    node.querySelector(".thongbao").href = a.thongBaoUrl || "#";
-    node.querySelector(".quyche").href   = a.quiCheUrl   || "#";
+    const tb = node.querySelector(".thongbao");
+    const qc = node.querySelector(".quyche");
+    tb.href = a.thongBaoUrl || "#"; tb.onclick = (e)=>{ if(tb.href!=="#") openExternal(tb.href); e.preventDefault(); };
+    qc.href = a.quiCheUrl   || "#"; qc.onclick = (e)=>{ if(qc.href!=="#") openExternal(qc.href); e.preventDefault(); };
 
     node.querySelector(".time").textContent   = `${epochToVN(startTs)} → ${epochToVN(endTs)}`;
     node.querySelector(".cutoff").textContent = epochToVN(cutoffTs);
@@ -399,7 +419,6 @@
 
     node.querySelector(".status").textContent = `Tình trạng: ${["Chưa diễn ra","Đang diễn ra","Đã kết thúc","Đã chốt"][Number(st)] ?? "—"}`;
 
-    // Join / Back
     node.querySelector(".joinBtn").addEventListener("click", () => {
       [...els.list.children].forEach(el => { if (el !== node) el.style.display = "none"; });
       body.classList.remove("hidden");
@@ -408,9 +427,7 @@
     });
     node.querySelector(".backBtn").addEventListener("click", () => { [...els.list.children].forEach(el => { el.style.display = ""; }); });
 
-    // Nút hành động theo vai trò
     await updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
-
     return node;
   }
 
@@ -421,7 +438,6 @@
     const updBtn    = node.querySelector(".updateWlBtn");
     const bidBtn    = node.querySelector(".bidBtn");
 
-    // Ẩn nút “Tạo cuộc đấu giá” trong card
     createBtn?.classList.add("hidden");
 
     if (!account || !DG) {
@@ -442,20 +458,18 @@
     const isOrg = (a.organizer || "").toLowerCase() === (account || "").toLowerCase();
     const now = Math.floor(Date.now() / 1000);
 
-    // Cập nhật whitelist: chỉ organizer, trước cutoff
     const canUpd = isOrg && now < (cutoffTs ?? numOr0(a.whitelistCutoff));
     updBtn?.classList.toggle("hidden", !canUpd);
     updBtn.onclick = canUpd ? (() => makeUpdateForm(node, id, (cutoffTs ?? numOr0(a.whitelistCutoff)))) : null;
 
-    // Bỏ giá — HIỂN THỊ NGAY KHI WHITELISTED; chỉ ENABLE trong [start, end)
     try {
       const isWL = await DG.isWhitelisted(id, account);
       const sTs = (startTs ?? numOr0(a.auctionStart));
       const eTs = (endTs   ?? numOr0(a.auctionEnd));
       const live = now >= sTs && now < eTs;
 
-      const showBid = isWL;           // hiện nút nếu đã whitelist
-      const enableBid = isWL && live; // bật khi đang trong giờ
+      const showBid = isWL;
+      const enableBid = isWL && live;
 
       bidBtn?.classList.toggle("hidden", !showBid);
       bidBtn.disabled = !enableBid;
@@ -467,7 +481,7 @@
     }
   }
 
-  /* -------------------- Whitelist UI (rộng + nút xem chi tiết) -------------------- */
+  /* -------------------- Whitelist UI (rộng + nút MỞ xem tài liệu) -------------------- */
   function ensureWlBoxStyle(box) {
     box.style.whiteSpace = "normal";
     box.style.background = "#0d1422";
@@ -475,44 +489,41 @@
     box.style.borderRadius = "12px";
     box.style.padding = "12px";
     box.style.margin = "10px 0";
-    box.style.maxHeight = "360px";
+    box.style.maxHeight = "380px";
     box.style.overflow = "auto";
   }
   function buildWlRow(id, addr) {
-    const row = document.createElement("div");
-    row.style.display = "flex";
-    row.style.alignItems = "center";
-    row.style.justifyContent = "space-between";
-    row.style.gap = "10px";
-    row.style.padding = "8px 0";
-    row.style.borderBottom = "1px solid rgba(255,255,255,0.06)";
+    const wrap = document.createElement("div");
+    wrap.style.padding = "10px 0";
+    wrap.style.borderBottom = "1px solid rgba(255,255,255,0.06)";
 
-    const left = document.createElement("div");
-    left.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-    left.style.fontSize = "0.95rem";
-    left.textContent = addr;
+    const address = document.createElement("div");
+    address.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    address.style.fontSize = "0.95rem";
+    address.style.wordBreak = "break-all";
+    address.textContent = addr;
 
     const btn = document.createElement("button");
     btn.className = "btn";
-    btn.textContent = "Mở xem chi tiết đã cọc";
-    btn.style.whiteSpace = "nowrap";
+    btn.textContent = "Mở";
+    btn.style.marginTop = "8px";
     btn.style.background = "linear-gradient(180deg,#60a5fa,#3b82f6)";
     btn.style.border = "none"; btn.style.fontWeight = "800";
+    btn.style.padding = "8px 14px";
 
     btn.onclick = () => {
-      // Hiện tại UNC được organizer dán khi cập nhật -> lưu tạm ở sessionStorage trên máy đó.
       const key = `unc:${id}:${addr.toLowerCase()}`;
       const unc = sessionStorage.getItem(key);
       if (unc && /^https?:\/\//i.test(unc)) {
-        window.open(unc, "_blank", "noopener");
+        openExternal(unc);
       } else {
-        alert("Chưa có UNC cho ví này.");
+        alert("Người tạo cuộc đấu giá không cung cấp tài liệu.");
       }
-      // TODO: nếu có back-end/IPFS, thay logic lấy UNC ở đây để mọi người đều xem được.
+      // TODO: nối tới nguồn UNC công khai (IPFS/API) khi sẵn sàng.
     };
 
-    row.append(left, btn);
-    return row;
+    wrap.append(address, btn);
+    return wrap;
   }
 
   async function loadWhitelistInto(cardNode, id) {
@@ -523,7 +534,6 @@
       const list = await DG_READ.getWhitelist(id);
       wrap.innerHTML = "";
       ensureWlBoxStyle(wrap);
-
       if (!list || !list.length) {
         wrap.textContent = "—";
         return;
@@ -610,10 +620,8 @@
         try { if (unc) sessionStorage.setItem(`unc:${id}:${addr.toLowerCase()}`, unc); } catch {}
 
         alert("Đã cập nhật whitelist.");
-
         await loadWhitelistInto(cardNode, id);
 
-        // Nếu đang dùng chính ví vừa thêm: hiển thị nút Bỏ giá ngay (enable/disable theo giờ)
         const { a } = await fetchAuction(id);
         const startTs = numOr0(a.auctionStart);
         const endTs   = numOr0(a.auctionEnd);
@@ -743,7 +751,7 @@
           const startTs = numOr0(a.auctionStart);
           const endTs   = numOr0(a.auctionEnd);
           const cutoffTs= numOr0(a.whitelistCutoff);
-          attachCountdown(node, id, startTs, endTs); // cập nhật đồng hồ
+          attachCountdown(node, id, startTs, endTs); // update đồng hồ
           await updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
         } catch (e) {
           console.warn("Reeval skip id", id, e?.message || e);
