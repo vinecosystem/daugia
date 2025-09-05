@@ -1,9 +1,9 @@
 /* ==========================================================================
-   daugia.vin — app.js (ethers v5, mobile-friendly, fixed)
+   daugia.vin — app.js (ethers v5, mobile link-fix)
    - Countdown ở đầu mỗi phiên (kể cả khi chưa kết nối ví)
    - Whitelist rộng; mỗi ví có nút "Mở" (UNC nếu có)
    - "Bỏ giá" hiện ngay khi ví trong whitelist; chỉ enable trong giờ live
-   - Fix MetaMask Mobile/iOS, tránh _blank; KHÔNG trùng định danh
+   - Sửa mở link trên di động: không chặn click; set target phù hợp thiết bị
    ========================================================================== */
 (function () {
   'use strict';
@@ -93,19 +93,24 @@
   const UA = navigator.userAgent || "";
   const IS_IOS = /iPhone|iPad|iPod/i.test(UA);
   const IS_MMOBILE = /MetaMask/i.test(UA);
-  function openExternal(url) {
-    try {
-      if (!url) return;
-      if (IS_MMOBILE || IS_IOS) {
-        location.href = url; // tránh _blank trong MM Mobile
-      } else {
-        window.open(url, "_blank", "noopener");
-      }
-    } catch {
-      location.href = url;
+
+  // Thiết lập target/link thông minh cho thẻ <a>
+  function setSmartLink(a, url) {
+    if (!a) return;
+    if (!url) {
+      a.removeAttribute("href");
+      a.classList.add("disabled");
+      return;
+    }
+    a.href = url;
+    if (IS_MMOBILE || IS_IOS) {
+      a.target = "_self";               // mở ngay trong tab hiện tại (ổn định)
+      a.removeAttribute("rel");
+    } else {
+      a.target = "_blank";              // desktop: mở tab mới
+      a.rel = "noopener";
     }
   }
-  const MM_SAFE_TEXT = (s) => (IS_MMOBILE || IS_IOS) ? String(s||"").replace(/[⏳🟢🔴]/g,"") : s;
 
   // Ping giữ kết nối ấm
   let pingTimer = null;
@@ -182,7 +187,7 @@
   const isUrl  = (s) => !s || /^(https?:)?\/\//i.test(String(s));
 
   const numOr0 = (x) => { try { return ethers.BigNumber.isBigNumber(x) ? x.toNumber() : Number(x||0); } catch { return 0; } };
-  const appendDong = (s) => s ? (s + " đồng") : "—"; // ĐỊNH NGHĨA DUY NHẤT
+  const appendDong = (s) => s ? (s + " đồng") : "—";
 
   /* -------------------- Kết nối ví -------------------- */
   async function ensureChain() {
@@ -367,7 +372,7 @@
       if (nowMs < startMs) text = `Con ${formatDHMS(startMs - nowMs)} den khi bat dau`;
       else if (nowMs >= startMs && nowMs < endMs) text = `Dang dien ra — con ${formatDHMS(endMs - nowMs)} den khi ket thuc`;
       else text = `Da ket thuc`;
-      cd.textContent = MM_SAFE_TEXT(text); // loại emoji trên iOS/MM
+      cd.textContent = text;
     };
     tick();
     const tId = setInterval(tick, 1000);
@@ -396,12 +401,9 @@
 
     node.querySelector(".snippet").textContent = " ";
 
-    const tb = node.querySelector(".thongbao");
-    const qc = node.querySelector(".quyche");
-    tb.href = a.thongBaoUrl || "#";
-    tb.addEventListener("click", (e)=>{ if (a.thongBaoUrl) { e.preventDefault(); openExternal(a.thongBaoUrl); }});
-    qc.href = a.quiCheUrl   || "#";
-    qc.addEventListener("click", (e)=>{ if (a.quiCheUrl) { e.preventDefault(); openExternal(a.quiCheUrl); }});
+    // Thiết lập link an toàn cho mọi thiết bị (không chặn click)
+    setSmartLink(node.querySelector(".thongbao"), a.thongBaoUrl || "");
+    setSmartLink(node.querySelector(".quyche"),   a.quiCheUrl   || "");
 
     node.querySelector(".time").textContent   = `${epochToVN(startTs)} → ${epochToVN(endTs)}`;
     node.querySelector(".cutoff").textContent = epochToVN(cutoffTs);
@@ -511,7 +513,8 @@
       const key = `unc:${id}:${addr.toLowerCase()}`;
       const unc = sessionStorage.getItem(key);
       if (unc && /^https?:\/\//i.test(unc)) {
-        openExternal(unc);
+        // điều hướng trực tiếp để tương thích di động
+        location.assign(unc);
       } else {
         alert("Người tạo cuộc đấu giá không cung cấp tài liệu.");
       }
@@ -775,7 +778,8 @@
     }
 
     await renderAuctions();
-    startReevalTimer();
+    // Tick định kỳ
+    (IS_MMOBILE || IS_IOS) ? setInterval(reevaluateAllCards, 10000) : setInterval(reevaluateAllCards, 5000);
 
     if (document.visibilityState === "visible") startPing();
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") startPing(); else stopPing(); });
