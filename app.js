@@ -1,5 +1,5 @@
 /* ==========================================================================
-   daugia.vin — app.js (ethers v5, tối ưu mobile) — bản chỉnh gas + “đồng”
+   daugia.vin — app.js (ethers v5, tối ưu mobile) — bản cập nhật “Cập nhật ví đã cọc” (form 2 ô)
    Hợp đồng DauGia @ 0x44DeC3CBdF3448F05f082050aBC9697d8224f511
    ========================================================================== */
 (function () {
@@ -158,6 +158,8 @@
     const ms = Date.UTC(yyyy, mm, dd, HH - 7, MM, 0); // VN = UTC+7
     return Math.floor(ms / 1000);
   }
+  const isAddr = (s) => /^0x[a-fA-F0-9]{40}$/.test(String(s||"").trim());
+  const isUrl  = (s) => !s || /^(https?:)?\/\//i.test(String(s));
 
   /* -------------------- Kết nối ví -------------------- */
   async function ensureChain() {
@@ -287,9 +289,104 @@
     }
   }
 
+  function makeUpdateForm(cardNode, id, cutoffSec) {
+    // nếu đã có, chỉ toggle
+    let box = cardNode.querySelector(".wlForm");
+    if (box) { box.classList.toggle("hidden"); return box; }
+
+    // Tạo UI nhỏ gọn ngay trong card (không đụng index.html/style.css)
+    box = document.createElement("div");
+    box.className = "wlForm";
+    box.style.marginTop = "10px";
+    box.style.padding = "12px";
+    box.style.border = "1px dashed #223049";
+    box.style.borderRadius = "10px";
+    box.style.background = "#0d1422";
+
+    const labelAddr = document.createElement("label");
+    labelAddr.style.display = "block"; labelAddr.style.marginBottom = "8px";
+    labelAddr.innerHTML = `Địa chỉ ví đã đặt cọc (bắt buộc):<br/>`;
+    const inAddr = document.createElement("input");
+    inAddr.type = "text"; inAddr.placeholder = "0x…"; inAddr.required = true;
+    inAddr.autocomplete = "off"; inAddr.style.width = "100%";
+    inAddr.style.padding = "10px"; inAddr.style.borderRadius = "8px";
+    inAddr.style.border = "1px solid #223049"; inAddr.style.background = "#0f1522";
+    inAddr.style.color = "#e8edf6";
+    labelAddr.appendChild(inAddr);
+
+    const labelUNC = document.createElement("label");
+    labelUNC.style.display = "block"; labelUNC.style.margin = "10px 0 8px";
+    labelUNC.innerHTML = `Link UNC (không bắt buộc):<br/>`;
+    const inUNC = document.createElement("input");
+    inUNC.type = "url"; inUNC.placeholder = "https://…";
+    inUNC.style.width = "100%"; inUNC.style.padding = "10px";
+    inUNC.style.borderRadius = "8px"; inUNC.style.border = "1px solid #223049";
+    inUNC.style.background = "#0f1522"; inUNC.style.color = "#e8edf6";
+    labelUNC.appendChild(inUNC);
+
+    const row = document.createElement("div");
+    row.style.display = "flex"; row.style.gap = "8px"; row.style.marginTop = "10px"; row.style.flexWrap = "wrap";
+
+    const btnSubmit = document.createElement("button");
+    btnSubmit.className = "btn";
+    btnSubmit.textContent = "Cập nhật";
+    btnSubmit.style.background = "linear-gradient(180deg,#22c55e,#199c49)"; // xanh success
+    btnSubmit.style.border = "none"; btnSubmit.style.fontWeight = "800";
+
+    const btnCancel = document.createElement("button");
+    btnCancel.className = "btn ghost";
+    btnCancel.textContent = "Hủy";
+
+    row.append(btnSubmit, btnCancel);
+    box.append(labelAddr, labelUNC, row);
+
+    btnCancel.onclick = (e) => { e.preventDefault(); box.classList.add("hidden"); };
+
+    btnSubmit.onclick = async (e) => {
+      e.preventDefault();
+      try {
+        const addr = String(inAddr.value || "").trim();
+        const unc  = String(inUNC.value || "").trim();
+        if (!isAddr(addr)) { alert("Địa chỉ ví không hợp lệ."); inAddr.focus(); return; }
+        if (!isUrl(unc)) { alert("UNC không hợp lệ (nếu nhập phải là URL)."); inUNC.focus(); return; }
+
+        // kiểm tra cutoff sơ bộ (UI)
+        const now = Math.floor(Date.now() / 1000);
+        if (now >= cutoffSec) { alert("Đã quá hạn cập nhật whitelist."); return; }
+
+        // nếu đã whitelisted rồi thì bỏ qua (không phát sinh phí)
+        const existed = await DG.isWhitelisted(id, addr);
+        if (existed) { alert("Ví này đã có trong danh sách."); return; }
+
+        await guardOnlineAndChain();
+        await ensureFeeAllowance();
+
+        // Chỉ THÊM 1 ví/lần; không xóa
+        const tx = await DG.updateWhitelist(id, [addr], [], { gasLimit: 5_000_000 });
+        await tx.wait();
+
+        // Lưu UNC (nếu có) tạm ở sessionStorage (không on-chain, chỉ cho người đang dùng)
+        try { if (unc) sessionStorage.setItem(`unc:${id}:${addr.toLowerCase()}`, unc); } catch {}
+
+        alert("Đã cập nhật whitelist.");
+        await loadWhitelistInto(cardNode, id);
+        box.classList.add("hidden");
+      } catch (e) {
+        console.error(e);
+        alert(e?.error?.message || e?.message || "Cập nhật whitelist thất bại.");
+      }
+    };
+
+    // Gắn sau vùng actions
+    const actions = cardNode.querySelector(".actions-row") || cardNode;
+    actions.after(box);
+    return box;
+  }
+
   async function buildCard(id) {
     const { a, st } = await fetchAuction(id);
     const node = els.tpl.content.firstElementChild.cloneNode(true);
+    node.id = "auction-" + id;
 
     // Tiêu đề / chi tiết
     node.querySelector(".title").textContent = a.summary || `(Phiên #${id})`;
@@ -347,14 +444,13 @@
         // Cập nhật whitelist: chỉ organizer, trước cutoff
         const canUpd = isOrg && now < a.whitelistCutoff;
         updBtn.classList.toggle("hidden", !canUpd);
-        updBtn.onclick = canUpd ? (() => onUpdateWhitelist(id)) : null;
+        updBtn.onclick = canUpd ? (() => makeUpdateForm(node, id, a.whitelistCutoff)) : null;
 
-        // Bỏ giá: trong whitelist, trong [start, end)
+        // Bỏ giá: trong whitelist, trong [start, end) — organizer vẫn có thể bỏ giá nếu nằm trong whitelist
         const isWL = await DG.isWhitelisted(id, account);
         const canBid = isWL && now >= a.auctionStart && now < a.auctionEnd;
         bidBtn.classList.toggle("hidden", !canBid);
         bidBtn.onclick = canBid ? (() => onBid(id)) : null;
-
 
         // Đăng ký trong card
         regBtn.onclick = onRegister;
@@ -366,16 +462,25 @@
   }
 
   async function loadWhitelistInto(cardNode, id) {
-  const wrap = cardNode.querySelector(".wlList");
-  if (!wrap) return;
-  wrap.textContent = "Đang tải…";
-  try {
-    const list = await DG_READ.getWhitelist(id);
-    wrap.textContent = (list && list.length) ? list.join("\n") : "—";
-  } catch { wrap.textContent = "—"; }
-}
-
-
+    const wrap = cardNode.querySelector(".wlList");
+    if (!wrap) return;
+    wrap.textContent = "Đang tải…";
+    try {
+      const list = await DG_READ.getWhitelist(id);
+      // hiển thị kèm UNC (nếu có trong session của người dùng này)
+      const lines = (list && list.length) ? list.map(a => {
+        let line = a;
+        try {
+          const unc = sessionStorage.getItem(`unc:${id}:${a.toLowerCase()}`);
+          if (unc) line += `  —  UNC: ${unc}`;
+        } catch {}
+        return line;
+      }) : [];
+      wrap.textContent = lines.length ? lines.join("\n") : "—";
+    } catch {
+      wrap.textContent = "—";
+    }
+  }
 
   /* -------------------- Hành động (đặt gasLimit cao) -------------------- */
   async function guardOnlineAndChain() {
@@ -438,24 +543,6 @@
       alert(e?.error?.message || e?.message || "Tạo phiên thất bại.");
     }
   });
-
-  async function onUpdateWhitelist(id) {
-    try {
-      await guardOnlineAndChain();
-      const addRaw = prompt("Nhập địa chỉ cần THÊM (phân tách dấu phẩy):", "");
-      const remRaw = prompt("Nhập địa chỉ cần GỠ (phân tách dấu phẩy, có thể bỏ trống):", "");
-      const addrs = (addRaw || "").split(",").map(s => s.trim()).filter(Boolean);
-      const rems  = (remRaw || "").split(",").map(s => s.trim()).filter(Boolean);
-
-      await ensureFeeAllowance();
-      const tx = await DG.updateWhitelist(id, addrs, rems, { gasLimit: 5_000_000 });
-      await tx.wait();
-      alert("Đã cập nhật whitelist.");
-      await renderAuctions();
-    } catch (e) {
-      alert(e?.error?.message || e?.message || "Cập nhật whitelist thất bại.");
-    }
-  }
 
   async function onBid(id) {
     try {
