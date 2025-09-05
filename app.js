@@ -490,40 +490,42 @@
     box.style.maxHeight = "380px";
     box.style.overflow = "auto";
   }
-  function buildWlRow(id, addr) {
-    const wrap = document.createElement("div");
-    wrap.style.padding = "10px 0";
-    wrap.style.borderBottom = "1px solid rgba(255,255,255,0.06)";
+  function buildWlRow(id, addr, fallbackUrl) {
+  const wrap = document.createElement("div");
+  wrap.style.padding = "10px 0";
+  wrap.style.borderBottom = "1px solid rgba(255,255,255,0.06)";
 
-    const address = document.createElement("div");
-    address.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-    address.style.fontSize = "0.95rem";
-    address.style.wordBreak = "break-all";
-    address.textContent = addr;
+  const address = document.createElement("div");
+  address.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+  address.style.fontSize = "0.95rem";
+  address.style.wordBreak = "break-all";
+  address.textContent = addr;
 
-    const btn = document.createElement("button");
-    btn.className = "btn";
-    btn.textContent = "Mở";
-    btn.style.marginTop = "8px";
-    btn.style.background = "linear-gradient(180deg,#60a5fa,#3b82f6)";
-    btn.style.border = "none"; btn.style.fontWeight = "800";
-    btn.style.padding = "8px 14px";
+  const btn = document.createElement("button");
+  btn.className = "btn";
+  btn.textContent = "Mở";
+  btn.style.marginTop = "8px";
+  btn.style.background = "linear-gradient(180deg,#60a5fa,#3b82f6)";
+  btn.style.border = "none"; btn.style.fontWeight = "800";
+  btn.style.padding = "8px 14px";
 
-    btn.onclick = () => {
-      const key = `unc:${id}:${addr.toLowerCase()}`;
-      const unc = sessionStorage.getItem(key);
-      if (unc && /^https?:\/\//i.test(unc)) {
-        // điều hướng trực tiếp để tương thích di động
-        location.assign(unc);
-      } else {
-        alert("Người tạo cuộc đấu giá không cung cấp tài liệu.");
-      }
-      // TODO: thay bằng lấy UNC từ nguồn công khai (IPFS/API) khi có.
-    };
+  btn.onclick = () => {
+    const key = `unc:${id}:${addr.toLowerCase()}`;
+    // Ưu tiên UNC riêng đã lưu khi cập nhật whitelist
+    const unc = sessionStorage.getItem(key) || localStorage.getItem(key) || "";
+    // Nếu không có UNC riêng, dùng link dự phòng từ phiên (quiCheUrl > thongBaoUrl)
+    const url = (unc && /^https?:\/\//i.test(unc)) ? unc : (fallbackUrl || "");
+    if (url && /^https?:\/\//i.test(url)) {
+      // Dùng điều hướng trực tiếp để tương thích mobile/WebView
+      location.assign(url);
+    } else {
+      alert("Người tạo cuộc đấu giá không cung cấp tài liệu.");
+    }
+  };
 
-    wrap.append(address, btn);
-    return wrap;
-  }
+  wrap.append(address, btn);
+  return wrap;
+}
 
   async function loadWhitelistInto(cardNode, id) {
     const wrap = cardNode.querySelector(".wlList");
