@@ -528,25 +528,30 @@
 }
 
   async function loadWhitelistInto(cardNode, id) {
-    const wrap = cardNode.querySelector(".wlList");
-    if (!wrap) return;
-    wrap.textContent = "Đang tải…";
-    try {
-      const list = await DG_READ.getWhitelist(id);
-      wrap.innerHTML = "";
-      ensureWlBoxStyle(wrap);
-      if (!list || !list.length) {
-        wrap.textContent = "—";
-        return;
-      }
-      for (const addr of list) {
-        wrap.appendChild(buildWlRow(id, addr));
-      }
-    } catch (e) {
-      console.error("getWhitelist failed:", e);
+  const wrap = cardNode.querySelector(".wlList");
+  if (!wrap) return;
+  wrap.textContent = "Đang tải…";
+  try {
+    // Lấy cả dữ liệu phiên để có link dự phòng (quiCheUrl/thongBaoUrl)
+    const a = await DG_READ.getAuction(id);
+    const fallbackUrl = a?.quiCheUrl || a?.thongBaoUrl || "";
+
+    const list = await DG_READ.getWhitelist(id);
+    wrap.innerHTML = "";
+    ensureWlBoxStyle(wrap);
+    if (!list || !list.length) {
       wrap.textContent = "—";
+      return;
     }
+    for (const addr of list) {
+      wrap.appendChild(buildWlRow(id, addr, fallbackUrl));
+    }
+  } catch (e) {
+    console.error("loadWhitelistInto failed:", e);
+    wrap.textContent = "—";
   }
+}
+
 
   /* -------------------- Form cập nhật whitelist (1 ví/lần) -------------------- */
   function makeUpdateForm(cardNode, id, cutoffSec) {
