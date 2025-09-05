@@ -349,11 +349,12 @@
         updBtn.classList.toggle("hidden", !canUpd);
         updBtn.onclick = canUpd ? (() => onUpdateWhitelist(id)) : null;
 
-        // Bỏ giá: không phải organizer, trong whitelist, trong [start, end)
+        // Bỏ giá: trong whitelist, trong [start, end)
         const isWL = await DG.isWhitelisted(id, account);
-        const canBid = !isOrg && isWL && now >= a.auctionStart && now < a.auctionEnd;
+        const canBid = isWL && now >= a.auctionStart && now < a.auctionEnd;
         bidBtn.classList.toggle("hidden", !canBid);
         bidBtn.onclick = canBid ? (() => onBid(id)) : null;
+
 
         // Đăng ký trong card
         regBtn.onclick = onRegister;
