@@ -1,9 +1,8 @@
 /* ==========================================================================
    daugia.vin — app.js (ethers v5)
-   - Hiện nút “Bỏ giá” ngay khi ví đã vào whitelist; chỉ enable trong giờ Live
-   - Nút “Tạo cuộc đấu giá” ẩn trong từng card (giữ nút ở header)
-   - UpdateWhitelist: form 2 ô (địa chỉ ví bắt buộc; UNC optional; 1 ví/lần)
-   Contract: DauGia @ 0x44DeC3CBdF3448F05f082050aBC9697d8224f511
+   - Robust render: bỏ qua phiên lỗi thay vì sập cả danh sách
+   - Hiện “Bỏ giá” ngay khi ví đã trong whitelist; chỉ enable trong khung giờ
+   - Ẩn nút “Tạo cuộc đấu giá” trong từng card
    ========================================================================== */
 (function () {
   'use strict';
@@ -79,10 +78,8 @@
     { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" } ], "name": "finalize", "outputs": [], "stateMutability": "nonpayable", "type": "function" }
   ];
 
-  // Phí 0.001 VIN (18 decimals) + gasLimit cao theo yêu cầu
-  const FEE_VIN = ethers.utils.parseUnits("0.001", 18);
+  const FEE_VIN = ethers.utils.parseUnits("0.001", 18); // phí 0.001 VIN
 
-  // Múi giờ Việt Nam
   const VN_TZ = "Asia/Bangkok";
 
   /* -------------------- Trạng thái & nhà cung cấp -------------------- */
@@ -92,7 +89,6 @@
   let web3Provider = null, signer = null, account = null;
   let DG = null, VIN = null;
 
-  // Giữ kết nối ấm
   let pingTimer = null;
   const startPing = () => { stopPing(); pingTimer = setInterval(() => readProvider.getBlockNumber().catch(() => {}), 45000); };
   const stopPing  = () => { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } };
@@ -185,7 +181,6 @@
       if (!window.ethereum || !window.ethers) { alert("Không tìm thấy ví Web3. Hãy cài MetaMask / dùng trình duyệt ví."); return; }
       web3Provider = new ethers.providers.Web3Provider(window.ethereum, "any");
 
-      // eth_accounts trước, nếu chưa có mới eth_requestAccounts (tránh -32002)
       let accounts = await window.ethereum.request({ method: "eth_accounts" });
       if (!accounts || !accounts.length) {
         try {
@@ -270,35 +265,70 @@
     await tx.wait();
   }
 
-  /* -------------------- Render danh sách -------------------- */
-  async function fetchAuctionCount() { try { return await DG_READ.auctionCount(); } catch { return ethers.BigNumber.from(0); } }
-  async function fetchAuction(id) { const [a, st] = await Promise.all([DG_READ.getAuction(id), DG_READ.getStatus(id)]); return { a, st }; }
+  /* -------------------- Render danh sách (robust) -------------------- */
+  async function fetchAuctionCount() {
+    try { return await DG_READ.auctionCount(); }
+    catch (e) { console.error("auctionCount failed:", e); return ethers.BigNumber.from(0); }
+  }
+
+  async function fetchAuction(id) {
+    const a = await DG_READ.getAuction(id);
+    const st = await DG_READ.getStatus(id);
+    return { a, st };
+  }
 
   async function renderAuctions() {
     els.list.textContent = "Đang tải…";
     try {
-      const count = await fetchAuctionCount();
-      const num = ethers.BigNumber.from(count).toNumber();
-      const ids = []; for (let i = num; i >= 1; i--) ids.push(i);
+      // kiểm tra template
+      if (!els.tpl || !els.tpl.content || !els.tpl.content.firstElementChild) {
+        console.error("Template #tpl-auction không khả dụng trong index.html");
+        els.list.textContent = "Lỗi template. Kiểm tra lại index.html.";
+        return;
+      }
+
+      const countBN = await fetchAuctionCount();
+      const num = ethers.BigNumber.from(countBN || 0).toNumber();
+      const ids = [];
+      for (let i = num; i >= 1; i--) ids.push(i);   // Hợp đồng đếm từ 1
       els.list.innerHTML = "";
+
       if (!ids.length) { els.list.textContent = "Chưa có cuộc đấu giá."; return; }
-      for (const id of ids) els.list.appendChild(await buildCard(id));
+
+      let okCount = 0;
+      for (const id of ids) {
+        try {
+          const card = await buildCard(id);
+          els.list.appendChild(card);
+          okCount++;
+        } catch (err) {
+          // Bỏ qua phiên lỗi, log để debug
+          console.warn(`Bỏ qua phiên #${id} vì lỗi:`, err?.message || err);
+          continue;
+        }
+      }
+      if (okCount === 0) {
+        els.list.textContent = "Không tải được danh sách.";
+      }
     } catch (e) {
-      console.error(e); els.list.textContent = "Không tải được danh sách.";
+      console.error(e);
+      els.list.textContent = "Không tải được danh sách.";
     }
   }
+
+  function numOr0(x) { try { return ethers.BigNumber.isBigNumber(x) ? x.toNumber() : Number(x||0); } catch { return 0; } }
 
   async function buildCard(id) {
     const { a, st } = await fetchAuction(id);
     const node = els.tpl.content.firstElementChild.cloneNode(true);
     node.id = "auction-" + id;
 
-    // Ép kiểu thời gian về number
-    const cutoffTs = a.whitelistCutoff.toNumber();
-    const startTs  = a.auctionStart.toNumber();
-    const endTs    = a.auctionEnd.toNumber();
+    // Ép kiểu thời gian về number (an toàn)
+    const cutoffTs = numOr0(a.whitelistCutoff);
+    const startTs  = numOr0(a.auctionStart);
+    const endTs    = numOr0(a.auctionEnd);
 
-    // Header / chi tiết
+    // Tiêu đề / chi tiết
     node.querySelector(".title").textContent = a.summary || `(Phiên #${id})`;
     const body = node.querySelector(".card-body");
     node.querySelector(".detailBtn").addEventListener("click", () => {
@@ -309,17 +339,17 @@
 
     // Nội dung / links
     node.querySelector(".snippet").textContent = " ";
-    node.querySelector(".thongbao").href = a.thongBaoUrl;
-    node.querySelector(".quyche").href   = a.quiCheUrl;
+    node.querySelector(".thongbao").href = a.thongBaoUrl || "#";
+    node.querySelector(".quyche").href   = a.quiCheUrl   || "#";
 
     node.querySelector(".time").textContent   = `${epochToVN(startTs)} → ${epochToVN(endTs)}`;
     node.querySelector(".cutoff").textContent = epochToVN(cutoffTs);
 
-    node.querySelector(".startPrice").textContent = appendDong(fmtVND(a.startPriceVND.toString()));
-    node.querySelector(".step").textContent       = appendDong(fmtVND(a.stepVND.toString()));
+    node.querySelector(".startPrice").textContent = appendDong(fmtVND(a.startPriceVND?.toString() || "0"));
+    node.querySelector(".step").textContent       = appendDong(fmtVND(a.stepVND?.toString() || "0"));
 
-    const hasLeader = a.currentLeader !== ethers.constants.AddressZero;
-    node.querySelector(".current").textContent    = hasLeader ? appendDong(fmtVND(a.currentPriceVND.toString())) : "—";
+    const hasLeader = (a.currentLeader || ethers.constants.AddressZero) !== ethers.constants.AddressZero;
+    node.querySelector(".current").textContent    = hasLeader ? appendDong(fmtVND(a.currentPriceVND?.toString() || "0")) : "—";
     node.querySelector(".leader").textContent     = hasLeader ? shortAddr(a.currentLeader) : "—";
 
     node.querySelector(".status").textContent = `Tình trạng: ${["Chưa diễn ra","Đang diễn ra","Đã kết thúc","Đã chốt"][Number(st)] ?? "—"}`;
@@ -333,7 +363,7 @@
     });
     node.querySelector(".backBtn").addEventListener("click", () => { [...els.list.children].forEach(el => { el.style.display = ""; }); });
 
-    // Nút hành động theo vai trò
+    // Nút theo vai trò
     await updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
 
     return node;
@@ -356,7 +386,6 @@
       return;
     }
 
-    // Nút đăng ký ở card chỉ để tiện (nút chính ở header)
     try {
       const isReg = await DG.isRegistered(account);
       regBtn.classList.toggle("hidden", isReg);
@@ -369,24 +398,25 @@
     const now = Math.floor(Date.now() / 1000);
 
     // Cập nhật whitelist: chỉ organizer, trước cutoff
-    const canUpd = isOrg && now < (cutoffTs ?? a.whitelistCutoff.toNumber());
+    const canUpd = isOrg && now < (cutoffTs ?? numOr0(a.whitelistCutoff));
     updBtn?.classList.toggle("hidden", !canUpd);
-    updBtn.onclick = canUpd ? (() => makeUpdateForm(node, id, (cutoffTs ?? a.whitelistCutoff.toNumber()))) : null;
+    updBtn.onclick = canUpd ? (() => makeUpdateForm(node, id, (cutoffTs ?? numOr0(a.whitelistCutoff)))) : null;
 
     // Bỏ giá — HIỂN THỊ NGAY KHI WHITELISTED; chỉ ENABLE trong [start, end)
     try {
       const isWL = await DG.isWhitelisted(id, account);
-      const live = now >= (startTs ?? a.auctionStart.toNumber()) && now < (endTs ?? a.auctionEnd.toNumber());
+      const sTs = (startTs ?? numOr0(a.auctionStart));
+      const eTs = (endTs   ?? numOr0(a.auctionEnd));
+      const live = now >= sTs && now < eTs;
 
-      // Organizer cũng được bỏ giá nếu nằm trong whitelist
-      const showBid = isWL;                   // 👈 hiện nút nếu đã trong whitelist
-      const enableBid = isWL && live;         // 👈 chỉ bấm được khi Live
+      const showBid = isWL;           // hiện nút nếu đã whitelist
+      const enableBid = isWL && live; // bật khi đang trong giờ
 
       bidBtn?.classList.toggle("hidden", !showBid);
       bidBtn.disabled = !enableBid;
       bidBtn.title = enableBid ? "" : (isWL ? "Ngoài thời gian diễn ra phiên" : "Bạn chưa trong danh sách ví đã cọc");
       bidBtn.onclick = enableBid ? (() => onBid(id)) : null;
-    } catch {
+    } catch (e) {
       bidBtn?.classList.add("hidden");
       bidBtn.onclick = null;
     }
@@ -398,7 +428,6 @@
     wrap.textContent = "Đang tải…";
     try {
       const list = await DG_READ.getWhitelist(id);
-      // hiển thị kèm UNC (nếu có trong session của người dùng này)
       const lines = (list && list.length) ? list.map(a => {
         let line = a;
         try {
@@ -408,7 +437,8 @@
         return line;
       }) : [];
       wrap.textContent = lines.length ? lines.join("\n") : "—";
-    } catch {
+    } catch (e) {
+      console.error("getWhitelist failed:", e);
       wrap.textContent = "—";
     }
   }
@@ -488,10 +518,9 @@
         alert("Đã cập nhật whitelist.");
         await loadWhitelistInto(cardNode, id);
 
-        // Nếu đang dùng chính ví vừa thêm: hiển thị nút Bỏ giá ngay (enable/disable theo giờ)
         const { a } = await fetchAuction(id);
-        const startTs = a.auctionStart.toNumber();
-        const endTs   = a.auctionEnd.toNumber();
+        const startTs = numOr0(a.auctionStart);
+        const endTs   = numOr0(a.auctionEnd);
         await updateCardActions(cardNode, a, id, { cutoffTs: cutoffSec, startTs, endTs });
         box.classList.add("hidden");
       } catch (e) {
@@ -607,15 +636,20 @@
   async function reevaluateAllCards() {
     try {
       const cards = [...els.list.children];
+      if (!cards.length) return;
       for (const node of cards) {
         const idStr = (node.id || "").replace("auction-", "");
         const id = idStr ? Number(idStr) : null;
         if (!id) continue;
-        const { a } = await fetchAuction(id);
-        const startTs = a.auctionStart.toNumber();
-        const endTs   = a.auctionEnd.toNumber();
-        const cutoffTs= a.whitelistCutoff.toNumber();
-        await updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
+        try {
+          const { a } = await fetchAuction(id);
+          const startTs = numOr0(a.auctionStart);
+          const endTs   = numOr0(a.auctionEnd);
+          const cutoffTs= numOr0(a.whitelistCutoff);
+          await updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
+        } catch (e) {
+          console.warn("Reeval skip id", id, e?.message || e);
+        }
       }
     } catch {}
   }
