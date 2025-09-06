@@ -1,4 +1,4 @@
-/* ==========================================================================
+/* ========================================================================== 
    daugia.vin — app.js (ethers v5, mobile link-fix)
    - Countdown ở đầu mỗi phiên (kể cả khi chưa kết nối ví)
    - Whitelist rộng; mỗi ví có nút "Mở" (UNC nếu có)
@@ -29,7 +29,6 @@
     "function allowance(address,address) view returns (uint256)",
     "function approve(address,uint256) returns (bool)"
   ];
-
   // ABI tối giản đủ dùng
   const DG_ABI = [
     { "inputs": [], "name": "auctionCount", "outputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ], "stateMutability": "view", "type": "function" },
@@ -65,23 +64,6 @@
         ], "internalType": "struct DauGia.Auction", "name": "", "type": "tuple" } ],
       "stateMutability": "view", "type": "function"
     },
-    { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" } ], "name": "getStatus",     "outputs": [ { "internalType": "uint8",   "name": "", "type": "uint8"   } ], "stateMutability": "view", "type": "function" },
-    { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" } ], "name": "getWhitelist",  "outputs": [ { "internalType": "address[]", "name": "", "type": "address[]" } ], "stateMutability": "view", "type": "function" },
-    { "inputs": [ { "internalType": "address", "name": "user", "type": "address" } ], "name": "isRegistered","outputs": [ { "internalType": "bool",   "name": "", "type": "bool"   } ], "stateMutability": "view", "type": "function" },
-    { "inputs": [ { "internalType": "uint256", "name": "id",   "type": "uint256" }, { "internalType": "address", "name": "user", "type": "address" } ], "name": "isWhitelisted", "outputs": [ { "internalType": "bool", "name": "", "type": "bool" } ], "stateMutability": "view", "type": "function" },
-    { "inputs": [ { "internalType": "uint256", "name": "id",   "type": "uint256" } ], "name": "getMinNextBid","outputs": [ { "internalType": "uint128", "name": "", "type": "uint128" } ], "stateMutability": "view", "type": "function" },
-    { "inputs": [], "name": "register", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-    { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" }, { "internalType": "address[]", "name": "addrs", "type": "address[]" }, { "internalType": "address[]", "name": "removes", "type": "address[]" } ],
-      "name": "updateWhitelist", "outputs": [], "stateMutability": "nonpayable", "type": "function"
-    },
-    { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" }, { "internalType": "uint128", "name": "amountVND", "type": "uint128" } ],
-      "name": "placeBid", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-    { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" } ], "name": "finalize", "outputs": [], "stateMutability": "nonpayable", "type": "function" }
-  ];
-
-  const FEE_VIN = ethers.utils.parseUnits("0.001", 18); // phí 0.001 VIN
-  const VN_TZ = "Asia/Bangkok";
-
   /* -------------------- Trạng thái & nhà cung cấp -------------------- */
   const readProvider = new ethers.providers.JsonRpcProvider(RPC_URL);
   const DG_READ = new ethers.Contract(DG_ADDR, DG_ABI, readProvider);
@@ -189,7 +171,7 @@
   const numOr0 = (x) => { try { return ethers.BigNumber.isBigNumber(x) ? x.toNumber() : Number(x||0); } catch { return 0; } };
   const appendDong = (s) => s ? (s + " đồng") : "—";
 
-  /* -------------------- Kết nối ví -------------------- */
+   /* -------------------- Kết nối ví -------------------- */
   async function ensureChain() {
     const provider = window.ethereum;
     const chainId = await provider.request({ method: "eth_chainId" });
@@ -293,11 +275,12 @@
     await tx.wait();
   }
 
-  /* -------------------- Render danh sách -------------------- */
+   /* -------------------- Render danh sách -------------------- */
   async function fetchAuctionCount() {
     try { return await DG_READ.auctionCount(); }
     catch (e) { console.error("auctionCount failed:", e); return ethers.BigNumber.from(0); }
   }
+
   async function fetchAuction(id) {
     const a = await DG_READ.getAuction(id);
     const st = await DG_READ.getStatus(id);
@@ -349,6 +332,7 @@
     const hh = String(h).padStart(2,"0"), mm = String(m).padStart(2,"0"), ss2 = String(ss).padStart(2,"0");
     return d>0 ? `${d}d ${hh}:${mm}:${ss2}` : `${hh}:${mm}:${ss2}`;
   }
+
   function attachCountdown(node, id, startTs, endTs) {
     let cd = node.querySelector(".countdown");
     if (!cd) {
@@ -379,7 +363,7 @@
     countdownTimers.set(id, tId);
   }
 
-  /* -------------------- Xây card -------------------- */
+   /* -------------------- Xây card -------------------- */
   async function buildCard(id) {
     const { a, st } = await fetchAuction(id);
     const node = els.tpl.content.firstElementChild.cloneNode(true);
@@ -479,7 +463,7 @@
     }
   }
 
-  /* -------------------- Whitelist UI (rộng + nút MỞ) -------------------- */
+   /* -------------------- Whitelist UI (rộng + nút MỞ) -------------------- */
   function ensureWlBoxStyle(box) {
     box.style.whiteSpace = "normal";
     box.style.background = "#0d1422";
@@ -490,6 +474,7 @@
     box.style.maxHeight = "380px";
     box.style.overflow = "auto";
   }
+  
   function buildWlRow(id, addr) {
     const wrap = document.createElement("div");
     wrap.style.padding = "10px 0";
@@ -638,7 +623,7 @@
     return box;
   }
 
-  /* -------------------- Hành động (gasLimit cao) -------------------- */
+   /* -------------------- Hành động (gasLimit cao) -------------------- */
   async function guardOnlineAndChain() {
     if (!window.navigator.onLine) throw new Error("Thiết bị đang offline.");
     await ensureChain();
@@ -721,7 +706,7 @@
     }
   }
 
-  /* -------------------- Tìm kiếm -------------------- */
+   /* -------------------- Tìm kiếm -------------------- */
   function applyFilters() {
     const q = (els.search.value || "").trim().toLowerCase();
     const st = els.filter.value;
@@ -759,7 +744,7 @@
     } catch {}
   }
 
-  /* -------------------- Khởi động -------------------- */
+   /* -------------------- Khởi động -------------------- */
   document.addEventListener("DOMContentLoaded", async () => {
     els.connect?.addEventListener("click", connectWallet);
     els.disconnect?.addEventListener("click", disconnectWallet);
