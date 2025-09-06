@@ -1,6 +1,9 @@
 /* ==========================================================================
-   daugia.vin — app.js (ethers v5, tối ưu mobile) — bản chỉnh gas + “đồng”
-   Hợp đồng DauGia @ 0x44DeC3CBdF3448F05f082050aBC9697d8224f511
+   daugia.vin — app.js (ethers v5, mobile link-fix)
+   - Countdown ở đầu mỗi phiên (kể cả khi chưa kết nối ví)
+   - Whitelist rộng; mỗi ví có nút "Mở" (UNC nếu có)
+   - "Bỏ giá" hiện ngay khi ví trong whitelist; chỉ enable trong giờ live
+   - Sửa mở link trên di động: không chặn click; set target phù hợp thiết bị
    ========================================================================== */
 (function () {
   'use strict';
@@ -27,7 +30,7 @@
     "function approve(address,uint256) returns (bool)"
   ];
 
-  // === ABI tối giản của DauGia (đủ dùng cho dapp) ===
+  // ABI tối giản đủ dùng
   const DG_ABI = [
     { "inputs": [], "name": "auctionCount", "outputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ], "stateMutability": "view", "type": "function" },
     { "inputs": [ { "components": [
@@ -76,27 +79,50 @@
     { "inputs": [ { "internalType": "uint256", "name": "id", "type": "uint256" } ], "name": "finalize", "outputs": [], "stateMutability": "nonpayable", "type": "function" }
   ];
 
-  // Phí 0.001 VIN (18 decimals)
-  const FEE_VIN = ethers.utils.parseUnits("0.001", 18);
-
-  // Múi giờ Việt Nam
+  const FEE_VIN = ethers.utils.parseUnits("0.001", 18); // phí 0.001 VIN
   const VN_TZ = "Asia/Bangkok";
 
   /* -------------------- Trạng thái & nhà cung cấp -------------------- */
   const readProvider = new ethers.providers.JsonRpcProvider(RPC_URL);
-  let web3Provider = null;    // ethers.providers.Web3Provider
-  let signer = null;
-  let account = null;
+  const DG_READ = new ethers.Contract(DG_ADDR, DG_ABI, readProvider);
 
-  let DG = null;              // Contract đọc/ghi
-  let VIN = null;
+  let web3Provider = null, signer = null, account = null;
+  let DG = null, VIN = null;
 
-  // Giữ kết nối ấm (mobile để lâu)
+  /* -------------------- Mobile helpers -------------------- */
+  const UA = navigator.userAgent || "";
+  const IS_IOS = /iPhone|iPad|iPod/i.test(UA);
+  const IS_MMOBILE = /MetaMask/i.test(UA);
+
+  // Thiết lập target/link thông minh cho thẻ <a>
+  function setSmartLink(a, url) {
+    if (!a) return;
+    if (!url) {
+      a.removeAttribute("href");
+      a.classList.add("disabled");
+      return;
+    }
+    a.href = url;
+    if (IS_MMOBILE || IS_IOS) {
+      a.target = "_self";               // mở ngay trong tab hiện tại (ổn định)
+      a.removeAttribute("rel");
+    } else {
+      a.target = "_blank";              // desktop: mở tab mới
+      a.rel = "noopener";
+    }
+  }
+
+  // Ping giữ kết nối ấm
   let pingTimer = null;
   const startPing = () => { stopPing(); pingTimer = setInterval(() => readProvider.getBlockNumber().catch(() => {}), 45000); };
   const stopPing  = () => { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } };
 
-  // Tránh double-click connect
+  // Re-evaluate theo chu kỳ (mobile 10s, desktop 5s)
+  let reevalTimer = null;
+  const REEVAL_MS = (IS_MMOBILE || IS_IOS) ? 10000 : 5000;
+  const startReevalTimer = () => { stopReevalTimer(); reevalTimer = setInterval(reevaluateAllCards, REEVAL_MS); };
+  const stopReevalTimer  = () => { if (reevalTimer) { clearInterval(reevalTimer); reevalTimer = null; } };
+
   let connectBusy = false;
 
   /* -------------------- DOM -------------------- */
@@ -134,7 +160,6 @@
 
   /* -------------------- Tiện ích -------------------- */
   const shortAddr = (a) => a ? (a.slice(0, 6) + "…" + a.slice(-4)) : "";
-  const appendDong = (s) => s ? (s + " đồng") : "—";
   function fmtVND(x) {
     const s = (typeof x === "string") ? x.replace(/\D/g, "") :
               ethers.BigNumber.isBigNumber(x) ? x.toString() :
@@ -158,6 +183,11 @@
     const ms = Date.UTC(yyyy, mm, dd, HH - 7, MM, 0); // VN = UTC+7
     return Math.floor(ms / 1000);
   }
+  const isAddr = (s) => /^0x[a-fA-F0-9]{40}$/.test(String(s||"").trim());
+  const isUrl  = (s) => !s || /^(https?:)?\/\//i.test(String(s));
+
+  const numOr0 = (x) => { try { return ethers.BigNumber.isBigNumber(x) ? x.toNumber() : Number(x||0); } catch { return 0; } };
+  const appendDong = (s) => s ? (s + " đồng") : "—";
 
   /* -------------------- Kết nối ví -------------------- */
   async function ensureChain() {
@@ -179,7 +209,6 @@
       if (!window.ethereum || !window.ethers) { alert("Không tìm thấy ví Web3. Hãy cài MetaMask / dùng trình duyệt ví."); return; }
       web3Provider = new ethers.providers.Web3Provider(window.ethereum, "any");
 
-      // eth_accounts trước, nếu chưa có mới eth_requestAccounts (tránh -32002)
       let accounts = await window.ethereum.request({ method: "eth_accounts" });
       if (!accounts || !accounts.length) {
         try {
@@ -187,7 +216,7 @@
           accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
         } catch (e) {
           if (e?.code === -32002) { alert("Ví đang bận xử lý yêu cầu trước. Mở ứng dụng ví, chấp thuận yêu cầu đang chờ rồi thử lại."); return; }
-          if (e?.code === 4001) { return; } // user reject
+          if (e?.code === 4001) { return; }
           throw e;
         }
       } else {
@@ -196,11 +225,9 @@
 
       signer = web3Provider.getSigner();
       account = await signer.getAddress();
-
       DG = new ethers.Contract(DG_ADDR, DG_ABI, signer);
       VIN = new ethers.Contract(VIN_ADDR, ERC20_MIN_ABI, signer);
 
-      // UI header
       els.connect.classList.add("hidden");
       els.walletInfo.classList.remove("hidden");
       els.addrShort.textContent = shortAddr(account);
@@ -208,13 +235,12 @@
       await refreshBalances();
       await updateHeaderButtons();
       await renderAuctions();
+      startReevalTimer();
 
-      // Sự kiện ví
       window.ethereum.on && window.ethereum.on("accountsChanged", () => location.reload());
       window.ethereum.on && window.ethereum.on("chainChanged", () => location.reload());
       window.ethereum.on && window.ethereum.on("disconnect", () => location.reload());
 
-      // Giữ kết nối ấm khi quay lại app
       window.addEventListener("focus", tryWarm);
       document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { tryWarm(); startPing(); } else { stopPing(); } });
       startPing();
@@ -233,7 +259,7 @@
     els.connect.classList.remove("hidden");
     els.btnRegister.classList.add("hidden");
     els.btnOpenCreate.classList.add("hidden");
-    stopPing();
+    stopPing(); stopReevalTimer();
   }
 
   async function tryWarm() {
@@ -267,115 +293,352 @@
     await tx.wait();
   }
 
-  /* -------------------- Danh sách đấu giá -------------------- */
-  const DG_READ = new ethers.Contract(DG_ADDR, DG_ABI, readProvider);
-
-  async function fetchAuctionCount() { try { return await DG_READ.auctionCount(); } catch { return ethers.BigNumber.from(0); } }
-  async function fetchAuction(id) { const [a, st] = await Promise.all([DG_READ.getAuction(id), DG_READ.getStatus(id)]); return { a, st }; }
+  /* -------------------- Render danh sách -------------------- */
+  async function fetchAuctionCount() {
+    try { return await DG_READ.auctionCount(); }
+    catch (e) { console.error("auctionCount failed:", e); return ethers.BigNumber.from(0); }
+  }
+  async function fetchAuction(id) {
+    const a = await DG_READ.getAuction(id);
+    const st = await DG_READ.getStatus(id);
+    return { a, st };
+  }
 
   async function renderAuctions() {
     els.list.textContent = "Đang tải…";
     try {
-      const count = await fetchAuctionCount();
-      const num = ethers.BigNumber.from(count).toNumber();
-      const ids = []; for (let i = num; i >= 1; i--) ids.push(i);
+      if (!els.tpl || !els.tpl.content || !els.tpl.content.firstElementChild) {
+        console.error("Template #tpl-auction không khả dụng");
+        els.list.textContent = "Lỗi template. Kiểm tra lại index.html.";
+        return;
+      }
+      const countBN = await fetchAuctionCount();
+      const num = ethers.BigNumber.from(countBN || 0).toNumber();
+      const ids = [];
+      for (let i = num; i >= 1; i--) ids.push(i);
       els.list.innerHTML = "";
       if (!ids.length) { els.list.textContent = "Chưa có cuộc đấu giá."; return; }
-      for (const id of ids) els.list.appendChild(await buildCard(id));
+
+      let okCount = 0;
+      for (const id of ids) {
+        try {
+          const card = await buildCard(id);
+          els.list.appendChild(card);
+          okCount++;
+        } catch (err) {
+          console.warn(`Bỏ qua phiên #${id} vì lỗi:`, err?.message || err);
+          continue;
+        }
+      }
+      if (okCount === 0) els.list.textContent = "Không tải được danh sách.";
     } catch (e) {
-      console.error(e); els.list.textContent = "Không tải được danh sách.";
+      console.error(e);
+      els.list.textContent = "Không tải được danh sách.";
     }
   }
 
+  /* -------------------- Đồng hồ đếm ngược -------------------- */
+  const countdownTimers = new Map(); // id -> intervalId
+  function formatDHMS(ms) {
+    if (ms <= 0) return "00:00:00";
+    const s = Math.floor(ms / 1000);
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const ss= s % 60;
+    const hh = String(h).padStart(2,"0"), mm = String(m).padStart(2,"0"), ss2 = String(ss).padStart(2,"0");
+    return d>0 ? `${d}d ${hh}:${mm}:${ss2}` : `${hh}:${mm}:${ss2}`;
+  }
+  function attachCountdown(node, id, startTs, endTs) {
+    let cd = node.querySelector(".countdown");
+    if (!cd) {
+      cd = document.createElement("div");
+      cd.className = "countdown";
+      cd.style.margin = "6px 0 8px";
+      cd.style.fontWeight = "700";
+      cd.style.fontSize = "0.95rem";
+      cd.style.color = "#9ddcff";
+      const title = node.querySelector(".title");
+      (title?.parentNode || node).insertBefore(cd, (title?.nextSibling || node.firstChild));
+    }
+    const old = countdownTimers.get(id);
+    if (old) clearInterval(old);
+
+    const tick = () => {
+      const nowMs = Date.now();
+      const startMs = startTs * 1000;
+      const endMs   = endTs   * 1000;
+      let text = "";
+      if (nowMs < startMs) text = `Con ${formatDHMS(startMs - nowMs)} den khi bat dau`;
+      else if (nowMs >= startMs && nowMs < endMs) text = `Dang dien ra — con ${formatDHMS(endMs - nowMs)} den khi ket thuc`;
+      else text = `Da ket thuc`;
+      cd.textContent = text;
+    };
+    tick();
+    const tId = setInterval(tick, 1000);
+    countdownTimers.set(id, tId);
+  }
+
+  /* -------------------- Xây card -------------------- */
   async function buildCard(id) {
     const { a, st } = await fetchAuction(id);
     const node = els.tpl.content.firstElementChild.cloneNode(true);
+    node.id = "auction-" + id;
 
-    // Tiêu đề / chi tiết
+    const cutoffTs = numOr0(a.whitelistCutoff);
+    const startTs  = numOr0(a.auctionStart);
+    const endTs    = numOr0(a.auctionEnd);
+
     node.querySelector(".title").textContent = a.summary || `(Phiên #${id})`;
+    attachCountdown(node, id, startTs, endTs);
+
     const body = node.querySelector(".card-body");
     node.querySelector(".detailBtn").addEventListener("click", () => {
       body.classList.toggle("hidden");
       if (!body.classList.contains("hidden")) loadWhitelistInto(node, id);
+      updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
     });
 
-    // Nội dung / links
     node.querySelector(".snippet").textContent = " ";
-    node.querySelector(".thongbao").href = a.thongBaoUrl;
-    node.querySelector(".quyche").href   = a.quiCheUrl;
 
-    node.querySelector(".time").textContent   = `${epochToVN(a.auctionStart)} → ${epochToVN(a.auctionEnd)}`;
-    node.querySelector(".cutoff").textContent = epochToVN(a.whitelistCutoff);
+    // Thiết lập link an toàn cho mọi thiết bị (không chặn click)
+    setSmartLink(node.querySelector(".thongbao"), a.thongBaoUrl || "");
+    setSmartLink(node.querySelector(".quyche"),   a.quiCheUrl   || "");
 
-    node.querySelector(".startPrice").textContent = appendDong(fmtVND(a.startPriceVND.toString()));
-    node.querySelector(".step").textContent       = appendDong(fmtVND(a.stepVND.toString()));
+    node.querySelector(".time").textContent   = `${epochToVN(startTs)} → ${epochToVN(endTs)}`;
+    node.querySelector(".cutoff").textContent = epochToVN(cutoffTs);
 
-    const hasLeader = a.currentLeader !== ethers.constants.AddressZero;
-    node.querySelector(".current").textContent    = hasLeader ? appendDong(fmtVND(a.currentPriceVND.toString())) : "—";
+    node.querySelector(".startPrice").textContent = appendDong(fmtVND(a.startPriceVND?.toString() || "0"));
+    node.querySelector(".step").textContent       = appendDong(fmtVND(a.stepVND?.toString() || "0"));
+
+    const hasLeader = (a.currentLeader || ethers.constants.AddressZero) !== ethers.constants.AddressZero;
+    node.querySelector(".current").textContent    = hasLeader ? appendDong(fmtVND(a.currentPriceVND?.toString() || "0")) : "—";
     node.querySelector(".leader").textContent     = hasLeader ? shortAddr(a.currentLeader) : "—";
 
     node.querySelector(".status").textContent = `Tình trạng: ${["Chưa diễn ra","Đang diễn ra","Đã kết thúc","Đã chốt"][Number(st)] ?? "—"}`;
 
-    // Join / Back
     node.querySelector(".joinBtn").addEventListener("click", () => {
       [...els.list.children].forEach(el => { if (el !== node) el.style.display = "none"; });
       body.classList.remove("hidden");
       loadWhitelistInto(node, id);
+      updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
     });
     node.querySelector(".backBtn").addEventListener("click", () => { [...els.list.children].forEach(el => { el.style.display = ""; }); });
 
-    // Nút theo vai trò (khi đã kết nối ví)
-    const regBtn   = node.querySelector(".regBtn");
-    const createBtn= node.querySelector(".createBtn");
-    const updBtn   = node.querySelector(".updateWlBtn");
-    const bidBtn   = node.querySelector(".bidBtn");
+    await updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
+    return node;
+  }
+
+  async function updateCardActions(node, a, id, times) {
+    const { cutoffTs, startTs, endTs } = times || {};
+    const regBtn    = node.querySelector(".regBtn");
+    const createBtn = node.querySelector(".createBtn");
+    const updBtn    = node.querySelector(".updateWlBtn");
+    const bidBtn    = node.querySelector(".bidBtn");
+
+    createBtn?.classList.add("hidden");
 
     if (!account || !DG) {
-      regBtn.classList.add("hidden");
-      createBtn.classList.add("hidden");
-      updBtn.classList.add("hidden");
-      bidBtn.classList.add("hidden");
-    } else {
-      (async () => {
-        const isReg = await DG.isRegistered(account);
-        regBtn.classList.toggle("hidden", isReg);
-        createBtn.classList.toggle("hidden", !isReg);
-
-        const isOrg = a.organizer.toLowerCase() === account.toLowerCase();
-        const now = Math.floor(Date.now() / 1000);
-
-        // Cập nhật whitelist: chỉ organizer, trước cutoff
-        const canUpd = isOrg && now < a.whitelistCutoff;
-        updBtn.classList.toggle("hidden", !canUpd);
-        updBtn.onclick = canUpd ? (() => onUpdateWhitelist(id)) : null;
-
-        // Bỏ giá: không phải organizer, trong whitelist, trong [start, end)
-        const isWL = await DG.isWhitelisted(id, account);
-        const canBid = !isOrg && isWL && now >= a.auctionStart && now < a.auctionEnd;
-        bidBtn.classList.toggle("hidden", !canBid);
-        bidBtn.onclick = canBid ? (() => onBid(id)) : null;
-
-        // Đăng ký trong card
-        regBtn.onclick = onRegister;
-        createBtn.onclick = openCreateDialog;
-      })();
+      regBtn?.classList.add("hidden");
+      updBtn?.classList.add("hidden");
+      bidBtn?.classList.add("hidden");
+      return;
     }
 
-    return node;
+    try {
+      const isReg = await DG.isRegistered(account);
+      regBtn.classList.toggle("hidden", isReg);
+      regBtn.onclick = onRegister;
+      els.btnRegister.classList.toggle("hidden", isReg);
+      els.btnOpenCreate.classList.toggle("hidden", !isReg);
+    } catch {}
+
+    const isOrg = (a.organizer || "").toLowerCase() === (account || "").toLowerCase();
+    const now = Math.floor(Date.now() / 1000);
+
+    const canUpd = isOrg && now < (cutoffTs ?? numOr0(a.whitelistCutoff));
+    updBtn?.classList.toggle("hidden", !canUpd);
+    updBtn.onclick = canUpd ? (() => makeUpdateForm(node, id, (cutoffTs ?? numOr0(a.whitelistCutoff)))) : null;
+
+    try {
+      const isWL = await DG.isWhitelisted(id, account);
+      const sTs = (startTs ?? numOr0(a.auctionStart));
+      const eTs = (endTs   ?? numOr0(a.auctionEnd));
+      const live = now >= sTs && now < eTs;
+
+      const showBid = isWL;
+      const enableBid = isWL && live;
+
+      bidBtn?.classList.toggle("hidden", !showBid);
+      bidBtn.disabled = !enableBid;
+      bidBtn.title = enableBid ? "" : (isWL ? "Ngoài thời gian diễn ra phiên" : "Bạn chưa trong danh sách ví đã cọc");
+      bidBtn.onclick = enableBid ? (() => onBid(id)) : null;
+    } catch (e) {
+      bidBtn?.classList.add("hidden");
+      bidBtn.onclick = null;
+    }
+  }
+
+  /* -------------------- Whitelist UI (rộng + nút MỞ) -------------------- */
+  function ensureWlBoxStyle(box) {
+    box.style.whiteSpace = "normal";
+    box.style.background = "#0d1422";
+    box.style.border = "1px dashed #223049";
+    box.style.borderRadius = "12px";
+    box.style.padding = "12px";
+    box.style.margin = "10px 0";
+    box.style.maxHeight = "380px";
+    box.style.overflow = "auto";
+  }
+  function buildWlRow(id, addr) {
+    const wrap = document.createElement("div");
+    wrap.style.padding = "10px 0";
+    wrap.style.borderBottom = "1px solid rgba(255,255,255,0.06)";
+
+    const address = document.createElement("div");
+    address.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+    address.style.fontSize = "0.95rem";
+    address.style.wordBreak = "break-all";
+    address.textContent = addr;
+
+    const btn = document.createElement("button");
+    btn.className = "btn";
+    btn.textContent = "Mở";
+    btn.style.marginTop = "8px";
+    btn.style.background = "linear-gradient(180deg,#60a5fa,#3b82f6)";
+    btn.style.border = "none"; btn.style.fontWeight = "800";
+    btn.style.padding = "8px 14px";
+
+    btn.onclick = () => {
+      const key = `unc:${id}:${addr.toLowerCase()}`;
+      const unc = sessionStorage.getItem(key);
+      if (unc && /^https?:\/\//i.test(unc)) {
+        // điều hướng trực tiếp để tương thích di động
+        location.assign(unc);
+      } else {
+        alert("Người tạo cuộc đấu giá không cung cấp tài liệu.");
+      }
+      // TODO: thay bằng lấy UNC từ nguồn công khai (IPFS/API) khi có.
+    };
+
+    wrap.append(address, btn);
+    return wrap;
   }
 
   async function loadWhitelistInto(cardNode, id) {
     const wrap = cardNode.querySelector(".wlList");
-    if (!wrap || wrap.dataset.loaded === "1") return;
+    if (!wrap) return;
     wrap.textContent = "Đang tải…";
     try {
       const list = await DG_READ.getWhitelist(id);
-      wrap.textContent = (list && list.length) ? list.join("\n") : "—";
-      wrap.dataset.loaded = "1";
-    } catch { wrap.textContent = "—"; }
+      wrap.innerHTML = "";
+      ensureWlBoxStyle(wrap);
+      if (!list || !list.length) {
+        wrap.textContent = "—";
+        return;
+      }
+      for (const addr of list) {
+        wrap.appendChild(buildWlRow(id, addr));
+      }
+    } catch (e) {
+      console.error("getWhitelist failed:", e);
+      wrap.textContent = "—";
+    }
   }
 
-  /* -------------------- Hành động (đặt gasLimit cao) -------------------- */
+  /* -------------------- Form cập nhật whitelist (1 ví/lần) -------------------- */
+  function makeUpdateForm(cardNode, id, cutoffSec) {
+    let box = cardNode.querySelector(".wlForm");
+    if (box) { box.classList.toggle("hidden"); return box; }
+
+    box = document.createElement("div");
+    box.className = "wlForm";
+    box.style.marginTop = "10px";
+    box.style.padding = "12px";
+    box.style.border = "1px dashed #223049";
+    box.style.borderRadius = "10px";
+    box.style.background = "#0d1422";
+
+    const labelAddr = document.createElement("label");
+    labelAddr.style.display = "block"; labelAddr.style.marginBottom = "8px";
+    labelAddr.innerHTML = `Địa chỉ ví đã đặt cọc (bắt buộc, 1 ví/lần):<br/>`;
+    const inAddr = document.createElement("input");
+    inAddr.type = "text"; inAddr.placeholder = "0x…"; inAddr.required = true;
+    inAddr.autocomplete = "off"; inAddr.style.width = "100%";
+    inAddr.style.padding = "10px"; inAddr.style.borderRadius = "8px";
+    inAddr.style.border = "1px solid #223049"; inAddr.style.background = "#0f1522";
+    inAddr.style.color = "#e8edf6";
+    labelAddr.appendChild(inAddr);
+
+    const labelUNC = document.createElement("label");
+    labelUNC.style.display = "block"; labelUNC.style.margin = "10px 0 8px";
+    labelUNC.innerHTML = `Link UNC (không bắt buộc):<br/>`;
+    const inUNC = document.createElement("input");
+    inUNC.type = "url"; inUNC.placeholder = "https://…";
+    inUNC.style.width = "100%"; inUNC.style.padding = "10px";
+    inUNC.style.borderRadius = "8px"; inUNC.style.border = "1px solid #223049";
+    inUNC.style.background = "#0f1522"; inUNC.style.color = "#e8edf6";
+    labelUNC.appendChild(inUNC);
+
+    const row = document.createElement("div");
+    row.style.display = "flex"; row.style.gap = "8px"; row.style.marginTop = "10px"; row.style.flexWrap = "wrap";
+
+    const btnSubmit = document.createElement("button");
+    btnSubmit.className = "btn";
+    btnSubmit.textContent = "Cập nhật";
+    btnSubmit.style.background = "linear-gradient(180deg,#22c55e,#199c49)";
+    btnSubmit.style.border = "none"; btnSubmit.style.fontWeight = "800";
+
+    const btnCancel = document.createElement("button");
+    btnCancel.className = "btn ghost";
+    btnCancel.textContent = "Hủy";
+
+    row.append(btnSubmit, btnCancel);
+    box.append(labelAddr, labelUNC, row);
+
+    btnCancel.onclick = (e) => { e.preventDefault(); box.classList.add("hidden"); };
+
+    btnSubmit.onclick = async (e) => {
+      e.preventDefault();
+      try {
+        const addr = String(inAddr.value || "").trim();
+        const unc  = String(inUNC.value || "").trim();
+        if (!isAddr(addr)) { alert("Địa chỉ ví không hợp lệ."); inAddr.focus(); return; }
+        if (!isUrl(unc))   { alert("UNC không hợp lệ (nếu nhập phải là URL)."); inUNC.focus(); return; }
+
+        const now = Math.floor(Date.now() / 1000);
+        if (now >= cutoffSec) { alert("Đã quá hạn cập nhật whitelist."); return; }
+
+        const existed = await DG.isWhitelisted(id, addr);
+        if (existed) { alert("Ví này đã có trong danh sách."); return; }
+
+        await ensureFeeAllowance();
+        const tx = await DG.updateWhitelist(id, [addr], [], { gasLimit: 5_000_000 });
+        await tx.wait();
+
+        try { if (unc) sessionStorage.setItem(`unc:${id}:${addr.toLowerCase()}`, unc); } catch {}
+
+        alert("Đã cập nhật whitelist.");
+        await loadWhitelistInto(cardNode, id);
+
+        const { a } = await fetchAuction(id);
+        const startTs = numOr0(a.auctionStart);
+        const endTs   = numOr0(a.auctionEnd);
+        await updateCardActions(cardNode, a, id, { cutoffTs: cutoffSec, startTs, endTs });
+
+        box.classList.add("hidden");
+      } catch (e) {
+        console.error(e);
+        alert(e?.error?.message || e?.message || "Cập nhật whitelist thất bại.");
+      }
+    };
+
+    const actions = cardNode.querySelector(".actions-row") || cardNode;
+    actions.after(box);
+    return box;
+  }
+
+  /* -------------------- Hành động (gasLimit cao) -------------------- */
   async function guardOnlineAndChain() {
     if (!window.navigator.onLine) throw new Error("Thiết bị đang offline.");
     await ensureChain();
@@ -390,6 +653,7 @@
       alert("Đăng ký thành công.");
       await refreshBalances();
       await updateHeaderButtons();
+      await renderAuctions();
     } catch (e) {
       alert(e?.error?.message || e?.message || "Đăng ký thất bại.");
     }
@@ -437,24 +701,6 @@
     }
   });
 
-  async function onUpdateWhitelist(id) {
-    try {
-      await guardOnlineAndChain();
-      const addRaw = prompt("Nhập địa chỉ cần THÊM (phân tách dấu phẩy):", "");
-      const remRaw = prompt("Nhập địa chỉ cần GỠ (phân tách dấu phẩy, có thể bỏ trống):", "");
-      const addrs = (addRaw || "").split(",").map(s => s.trim()).filter(Boolean);
-      const rems  = (remRaw || "").split(",").map(s => s.trim()).filter(Boolean);
-
-      await ensureFeeAllowance();
-      const tx = await DG.updateWhitelist(id, addrs, rems, { gasLimit: 5_000_000 });
-      await tx.wait();
-      alert("Đã cập nhật whitelist.");
-      await renderAuctions();
-    } catch (e) {
-      alert(e?.error?.message || e?.message || "Cập nhật whitelist thất bại.");
-    }
-  }
-
   async function onBid(id) {
     try {
       await guardOnlineAndChain();
@@ -491,6 +737,28 @@
     });
   }
 
+  async function reevaluateAllCards() {
+    try {
+      const cards = [...els.list.children];
+      if (!cards.length) return;
+      for (const node of cards) {
+        const idStr = (node.id || "").replace("auction-", "");
+        const id = idStr ? Number(idStr) : null;
+        if (!id) continue;
+        try {
+          const { a } = await fetchAuction(id);
+          const startTs = numOr0(a.auctionStart);
+          const endTs   = numOr0(a.auctionEnd);
+          const cutoffTs= numOr0(a.whitelistCutoff);
+          attachCountdown(node, id, startTs, endTs); // update đồng hồ
+          await updateCardActions(node, a, id, { cutoffTs, startTs, endTs });
+        } catch (e) {
+          console.warn("Reeval skip id", id, e?.message || e);
+        }
+      }
+    } catch {}
+  }
+
   /* -------------------- Khởi động -------------------- */
   document.addEventListener("DOMContentLoaded", async () => {
     els.connect?.addEventListener("click", connectWallet);
@@ -510,6 +778,8 @@
     }
 
     await renderAuctions();
+    // Tick định kỳ
+    (IS_MMOBILE || IS_IOS) ? setInterval(reevaluateAllCards, 10000) : setInterval(reevaluateAllCards, 5000);
 
     if (document.visibilityState === "visible") startPing();
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") startPing(); else stopPing(); });
