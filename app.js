@@ -662,44 +662,50 @@
   function openCreateDialog() { els.dlgCreate.showModal(); }
 
   els.formCreate.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    try {
-      await guardOnlineAndChain();
+  ev.preventDefault();
+  try {
+    await guardOnlineAndChain(); // Kiểm tra kết nối và mạng
 
-      const summary = (els.fSummary.value || "").trim();
-      const thongBao = (els.fThongBao.value || "").trim();
-      const quiChe   = (els.fQuiChe.value || "").trim();
-      const cutoff   = parseVNDateTime(els.fCutoff.value);
-      const start    = parseVNDateTime(els.fStart.value);
-      const end      = parseVNDateTime(els.fEnd.value);
-      const startPrice = parseVNDToBN(els.fStartPrice.value);
-      const step       = parseVNDToBN(els.fStep.value);
+    const summary = (els.fSummary.value || "").trim();
+    const thongBao = (els.fThongBao.value || "").trim();
+    const quiChe   = (els.fQuiChe.value || "").trim();
+    const cutoff   = parseVNDateTime(els.fCutoff.value);  // Đảm bảo định dạng thời gian hợp lệ
+    const start    = parseVNDateTime(els.fStart.value);   // Đảm bảo định dạng thời gian hợp lệ
+    const end      = parseVNDateTime(els.fEnd.value);     // Đảm bảo định dạng thời gian hợp lệ
+    const startPrice = parseVNDToBN(els.fStartPrice.value);
+    const step       = parseVNDToBN(els.fStep.value);
 
-      if (!summary || !thongBao || !quiChe) throw new Error("Thiếu dữ liệu bắt buộc.");
-      if (!(cutoff && start && end)) throw new Error("Định dạng thời gian không đúng (dd/mm/yyyy hh:mm).");
-      const now = Math.floor(Date.now() / 1000);
-      if (!(now < cutoff && cutoff <= start && start < end)) throw new Error("Thứ tự thời gian không hợp lệ.");
-      if (startPrice.lte(0) || step.lte(0)) throw new Error("Giá khởi điểm/bước giá phải > 0.");
+    // Kiểm tra dữ liệu nhập vào
+    if (!summary || !thongBao || !quiChe) throw new Error("Thiếu dữ liệu bắt buộc.");
+    if (!(cutoff && start && end)) throw new Error("Định dạng thời gian không đúng (dd/mm/yyyy hh:mm).");
+    const now = Math.floor(Date.now() / 1000);
+    if (!(now < cutoff && cutoff <= start && start < end)) throw new Error("Thứ tự thời gian không hợp lệ.");
+    if (startPrice.lte(0) || step.lte(0)) throw new Error("Giá khởi điểm/bước giá phải > 0.");
 
-      await ensureFeeAllowance();
-      const tx = await DG.createAuction({
-        summary: summary,
-        thongBaoUrl: thongBao,
-        quiCheUrl: quiChe,
-        whitelistCutoff: cutoff,
-        auctionStart: start,
-        auctionEnd: end,
-        startPriceVND: startPrice,
-        stepVND: step
-      }, { gasLimit: 5_000_000 });
-      await tx.wait();
-      els.dlgCreate.close();
-      alert("Đã tạo phiên.");
-      await renderAuctions();
-    } catch (e) {
-      alert(e?.error?.message || e?.message || "Tạo phiên thất bại.");
-    }
-  });
+    // Kiểm tra quyền sử dụng phí VIN
+    await ensureFeeAllowance();
+
+    // Gửi giao dịch tạo đấu giá
+    const tx = await DG.createAuction({
+      summary: summary,
+      thongBaoUrl: thongBao,
+      quiCheUrl: quiChe,
+      whitelistCutoff: cutoff,
+      auctionStart: start,
+      auctionEnd: end,
+      startPriceVND: startPrice,
+      stepVND: step
+    }, { gasLimit: 5_000_000 });
+
+    await tx.wait();
+    els.dlgCreate.close();  // Đóng dialog tạo cuộc đấu giá
+    alert("Đã tạo phiên.");
+    await renderAuctions();  // Cập nhật danh sách cuộc đấu giá
+  } catch (e) {
+    alert(e?.error?.message || e?.message || "Tạo phiên thất bại.");
+  }
+});
+
 
   async function onBid(id) {
     try {
