@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Daugia.vin - Minh bạch trên Blockchain</title>
+  <link rel="icon" type="image/png" href="vin64.png"/>
+  <link rel="stylesheet" href="style.css"/>
+  <meta name="theme-color" content="#0c111b"/>
+</head>
+<body>
+  <header class="header container">
+    <div class="brand">
+      <img class="logo-img" src="vin128.png" alt="daugia.vin"/>
+      <div class="brand-text">
+        <h1 class="logo">Daugia.vin</h1>
+        <div class="slogan">Minh bạch trên Blockchain</div>
+        <div class="vin-price">
+          <span>1 VIN ≈</span>
+          <strong id="vinPriceUsd">—</strong>
+          <span>USD</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="wallet-box">
+      <div class="actions-inline">
+        <button id="btn-connect" class="btn primary">Kết nối ví</button>
+        <div id="wallet-info" class="account hidden">
+          <span id="addr-short">0x…</span>
+          <span class="balance">VIN: <b id="vin-balance">0.0000</b> | VIC: <b id="vic-balance">0.0000</b></span>
+          <button id="btn-disconnect" class="btn ghost small">Ngắt</button>
+        </div>
+      </div>
+      <div class="actions-inline">
+        <button id="btn-register" class="btn warn hidden">Đăng ký (0.001 VIN)</button>
+        <button id="btn-open-create" class="btn success hidden">Tạo cuộc đấu giá</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="container">
+    <div class="searchBar">
+      <input id="searchInput" type="search" placeholder="Tìm theo mô tả ngắn hoặc ví tổ chức…"/>
+      <select id="statusFilter">
+        <option value="">Tất cả trạng thái</option>
+        <option value="0">Chưa diễn ra</option>
+        <option value="1">Đang diễn ra</option>
+        <option value="2">Đã kết thúc</option>
+        <option value="3">Đã chốt</option>
+      </select>
+      <button id="searchBtn" class="btn">Tìm</button>
+      <button id="clearSearchBtn" class="btn ghost">Xóa lọc</button>
+    </div>
+  </section>
+
+  <main class="container">
+    <div id="auctions-list" class="list">Đang tải…</div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="links">
+        <a href="https://vicscan.xyz/address/0x44DeC3CBdF3448F05f082050aBC9697d8224f511#code" target="_blank" rel="noopener">Hợp đồng đấu giá</a>
+        <a href="https://vicscan.xyz/token/0x941F63807401efCE8afe3C9d88d368bAA287Fac4" target="_blank" rel="noopener">VIN token</a>
+        <a href="https://ipfs.io/ipfs/bafybeigooqte3w5m3rok2r7c5czep2flsfeocwjpzzid3vxszdyib3rjpi" target="_blank" rel="noopener">Swap VIN/VIC</a>
+        <a href="https://docs.google.com/document/d/1MH7DPggKAGPQkdC2UuD4Afm9E_QOMbOr/edit" target="_blank" rel="noopener">Hướng dẫn</a>
+      </div>
+      <div class="disclaimer">
+        ⚖️ Đây là giao diện phi tập trung. Tất cả logic đấu giá do hợp đồng thông minh trên blockchain Viction kiểm soát. Không có đơn vị giám sát hay vận hành, nền tảng không thu tiền đặt cọc và không giữ tiền bán tài sản — chỉ cung cấp cơ chế đấu giá minh bạch, công bằng.
+      </div>
+    </div>
+  </footer>
+
+  <!-- ====== Template card đấu giá ====== -->
+  <template id="tpl-auction">
+    <article class="card">
+      <div class="card-head">
+        <h3 class="title">Tiêu đề</h3>
+        <button class="btn small detailBtn">Chi tiết</button>
+      </div>
+      <div class="card-body hidden">
+        <div class="cols">
+          <div class="col content">
+            <div class="snippet"> </div>
+            <div class="doc-links">
+              <a class="thongbao" href="#" target="_blank" rel="noopener">Mở Thông báo</a>
+              <a class="quyche"   href="#" target="_blank" rel="noopener">Mở Quy chế</a>
+            </div>
+          </div>
+          <div class="col info">
+            <div><b>Thời gian đấu giá:</b> <span class="time">—</span></div>
+            <div><b>Hạn cập nhật ví đã đặt cọc:</b> <span class="cutoff">—</span></div>
+            <div><b>Giá khởi điểm:</b> <span class="startPrice">—</span></div>
+            <div><b>Bước giá:</b> <span class="step">—</span></div>
+            <div><b>Giá hiện thời:</b> <span class="current">—</span></div>
+            <div><b>Ví đang dẫn:</b> <span class="leader">—</span></div>
+
+            <details class="wl">
+              <summary>Danh sách ví đã đặt cọc</summary>
+              <pre class="wlList">—</pre>
+            </details>
+          </div>
+        </div>
+
+        <div class="actions-row">
+          <button class="btn joinBtn">Tham gia</button>
+          <button class="btn ghost backBtn">Trở về danh sách</button>
+
+          <button class="btn warn regBtn hidden">Đăng ký (0.001 VIN)</button>
+          <button class="btn success createBtn hidden">Tạo cuộc đấu giá</button>
+          <button class="btn updateWlBtn hidden">Cập nhật ví đã đặt cọc</button>
+          <button class="btn primary bidBtn hidden">Bỏ giá</button>
+        </div>
+
+        <div class="status">Tình trạng: —</div>
+      </div>
+    </article>
+  </template>
+
+  <!-- ====== Dialog tạo cuộc đấu giá ====== -->
+  <dialog id="createDialog" class="dialog">
+    <div class="dialog-card">
+      <h3>Tạo cuộc đấu giá</h3>
+      <form id="createForm" method="dialog">
+        <label>
+          Mô tả ngắn gọn (≤ 280 ký tự) *
+          <input id="fSummary" type="text" maxlength="280" placeholder="Ví dụ: Tàu hàng rời Oriental Glory (IMO …)"/>
+        </label>
+
+        <label>
+          Link Thông báo đấu giá (bắt buộc) *
+          <input id="fThongBao" type="url" placeholder="https://…"/>
+        </label>
+
+        <label>
+          Link Quy chế đấu giá (bắt buộc) *
+          <input id="fQuiChe" type="url" placeholder="https://…"/>
+        </label>
+
+        <div class="grid2">
+          <label>
+            Hạn cập nhật ví đã cọc (dd/mm/yyyy hh:mm) *
+            <input id="fCutoff" type="text" placeholder="10/09/2025 09:59" inputmode="numeric" autocomplete="off"/>
+          </label>
+          <label>
+            Bắt đầu đấu giá (dd/mm/yyyy hh:mm) *
+            <input id="fStart" type="text" placeholder="10/09/2025 10:00" inputmode="numeric" autocomplete="off"/>
+          </label>
+        </div>
+
+        <label>
+          Kết thúc đấu giá (dd/mm/yyyy hh:mm) *
+          <input id="fEnd" type="text" placeholder="10/09/2025 11:00" inputmode="numeric" autocomplete="off"/>
+        </label>
+
+        <div class="grid2">
+          <label>
+            Giá khởi điểm (đồng) *
+            <input id="fStartPrice" type="text" placeholder="145908000000" inputmode="numeric" autocomplete="off"/>
+          </label>
+          <label>
+            Bước giá (đồng) *
+            <input id="fStep" type="text" placeholder="50000000" inputmode="numeric" autocomplete="off"/>
+          </label>
+        </div>
+
+        <menu>
+          <button class="btn ghost" value="cancel">Hủy</button>
+          <button class="btn primary" value="confirm">Đăng</button>
+        </menu>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Ethers v5 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <!-- Giá VIN ≈ USD (VIN = VIC×100; VIC lấy từ Binance) -->
+  <script>
+    (function () {
+      const el = document.getElementById('vinPriceUsd');
+      const fmt = (n) => (Math.round(n * 100) / 100).toFixed(2);
+      async function load() {
+        try {
+          const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=VICUSDT', { cache:'no-store' });
+          const j = await r.json();
+          const vic = parseFloat(j.price || '0');
+          if (vic > 0) el.textContent = fmt(vic * 100);
+          else el.textContent = '—';
+        } catch { el.textContent = '—'; }
+      }
+      load();
+      setInterval(load, 60_000);
+    })();
+  </script>
+
+  <!-- Ứng dụng -->
+  <script src="app.js"></script>
+</body>
+</html>
